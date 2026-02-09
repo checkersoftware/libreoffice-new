@@ -28,11 +28,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. When JavaScript returns an empty string (font unavailable), LibreOffice falls through to its normal fallback font without crashing or hanging
   4. The WASM thread suspends via JSPI during the JavaScript callback and resumes correctly with the result, without deadlocking
   5. Desktop (non-WASM) builds compile and run with zero behavioral changes -- no new warnings, no font resolution differences, no binary size increase
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Build system FS export + WASM font resolution hook (EM_ASYNC_JS/EM_JS + intercept-register-retry in fontsubst.cxx)
 
 ### Phase 2: Caching and Diagnostics
 **Goal**: Font resolution does not make redundant JavaScript calls, and the complete resolution flow is observable through diagnostic logging
@@ -66,6 +65,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Font Resolution | 0/TBD | Not started | - |
+| 1. Core Font Resolution | 0/1 | Not started | - |
 | 2. Caching and Diagnostics | 0/TBD | Not started | - |
 | 3. Font Variant Support | 0/TBD | Not started | - |
