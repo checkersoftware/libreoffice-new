@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 ## Current Position
 
 Phase: 1 of 3 (Core Font Resolution)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-02-09 -- Roadmap created
+Plan: 1 of 1 in current phase
+Status: Phase 1 complete
+Last activity: 2026-02-10 -- Executed 01-01-PLAN.md
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 3min
+- Total execution time: 3min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-core-font-resolution | 1 | 3min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: -
-- Trend: -
+- Last 5 plans: 01-01 (3min)
+- Trend: n/a (first plan)
 
 *Updated after each plan completion*
 
@@ -44,6 +44,9 @@ Recent decisions affecting current work:
 
 - [Roadmap]: Style hints (REQ-F10) and TTC support (REQ-F11) included in v1 scope despite being P2 features
 - [Roadmap]: 3-phase structure derived from requirement clustering (core resolution, robustness, variant support)
+- [01-01]: Export FS unconditionally in EXPORTED_RUNTIME_METHODS -- FORCE_FILESYSTEM=1 already set, no size cost
+- [01-01]: Quality boost 5800 matches AddTempDevFont exactly for consistent font priority
+- [01-01]: s_aTriedFonts as both recursion guard and negative cache -- one JS call per font name per session
 
 ### Pending Todos
 
@@ -57,6 +60,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-09
-Stopped at: Roadmap created, ready to plan Phase 1
+Last session: 2026-02-10
+Stopped at: Completed 01-01-PLAN.md (core font resolution hook)
 Resume file: None
