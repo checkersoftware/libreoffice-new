@@ -25,6 +25,15 @@
 #include <unx/fontmanager.hxx>
 #include <unotools/fontdefs.hxx>
 
+#ifdef EMSCRIPTEN
+#include <config_emscripten.h>
+#include <emscripten.h>
+#include <set>
+#include <cstdlib>
+#include <unx/freetype_glyphcache.hxx>
+#include <sal/log.hxx>
+#endif
+
 // platform specific font substitution hooks
 
 namespace {
@@ -50,8 +59,109 @@ public:
 
 }
 
+#ifdef EMSCRIPTEN
+
+// Static pointer to PhysicalFontCollection, set during RegisterFontSubstitutors().
+// Lifetime matches the application -- the collection is never rebuilt.
+static vcl::font::PhysicalFontCollection* s_pFontCollection = nullptr;
+
+// Set of font family names already attempted via JS resolution.
+// Prevents infinite recursion and serves as a negative cache.
+static std::set<OUString> s_aTriedFonts;
+
+#if HAVE_EMSCRIPTEN_JSPI
+// Async font resolution via JSPI. JS side implements Module.resolveSystemFont(familyName)
+// which returns Promise<ArrayBuffer|null>. JS writes font data to VFS via FS.writeFile()
+// and this function returns the VFS path as a C string (caller must free), or 0 on failure.
+EM_ASYNC_JS(char*, em_resolveFontFromHost, (const char* pFamilyName), {
+    var familyName = UTF8ToString(pFamilyName);
+    if (!Module.resolveSystemFont) {
+        return 0;
+    }
+    try {
+        var fontData = await Module.resolveSystemFont(familyName);
+        if (!fontData || fontData.byteLength === 0) {
+            return 0;
+        }
+        var safeName = familyName.replace(/[^a-zA-Z0-9_-]/g, '_');
+        var path = '/tmp/fonts/' + safeName + '.ttf';
+        try { FS.mkdirTree('/tmp/fonts'); } catch(e) {}
+        FS.writeFile(path, new Uint8Array(fontData));
+        return stringToNewUTF8(path);
+    } catch(e) {
+        console.warn('WASM font resolution failed for: ' + familyName, e);
+        return 0;
+    }
+});
+
+#else // !HAVE_EMSCRIPTEN_JSPI
+
+// Synchronous fallback for builds without JSPI.
+// JS side must implement Module.resolveSystemFontSync(familyName) -> ArrayBuffer|null
+// (must be synchronous, e.g., using ipcRenderer.sendSync in Electron).
+EM_JS(char*, em_resolveFontFromHost, (const char* pFamilyName), {
+    var familyName = UTF8ToString(pFamilyName);
+    if (!Module.resolveSystemFontSync) {
+        return 0;
+    }
+    var fontData = Module.resolveSystemFontSync(familyName);
+    if (!fontData || fontData.byteLength === 0) {
+        return 0;
+    }
+    var safeName = familyName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    var path = '/tmp/fonts/' + safeName + '.ttf';
+    try { FS.mkdirTree('/tmp/fonts'); } catch(e) {}
+    FS.writeFile(path, new Uint8Array(fontData));
+    return stringToNewUTF8(path);
+});
+
+#endif // HAVE_EMSCRIPTEN_JSPI
+
+// Register a font file from the VFS with the font pipeline.
+// Replicates the logic of FreeTypeTextRenderImpl::AddTempDevFont()
+// using singletons (PrintFontManager, FreetypeManager) and the stored
+// PhysicalFontCollection pointer. Returns true on success.
+static bool registerFontFromVFS(const OUString& rFileURL, const OUString& rFontName)
+{
+    if (!s_pFontCollection)
+        return false;
+
+    psp::PrintFontManager& rMgr = psp::PrintFontManager::get();
+    std::vector<psp::fontID> aFontIds = rMgr.addFontFile(rFileURL);
+    if (aFontIds.empty())
+        return false;
+
+    FreetypeManager& rFreetypeManager = FreetypeManager::get();
+    for (auto const& nFontId : aFontIds)
+    {
+        auto const* pFont = rMgr.getFont(nFontId);
+        if (!pFont)
+            continue;
+
+        FontAttributes aDFA = pFont->m_aFontAttributes;
+        aDFA.IncreaseQualityBy(5800);
+        if (!rFontName.isEmpty())
+            aDFA.SetFamilyName(rFontName);
+
+        int nFaceNum = rMgr.getFontFaceNumber(nFontId);
+        int nVariantNum = rMgr.getFontFaceVariation(nFontId);
+
+        const OString aFileName = rMgr.getFontFileSysPath(nFontId);
+        rFreetypeManager.AddFontFile(aFileName, nFaceNum, nVariantNum, nFontId, aDFA);
+    }
+
+    rFreetypeManager.AnnounceFonts(s_pFontCollection);
+    return true;
+}
+
+#endif // EMSCRIPTEN
+
 void SalGenericInstance::RegisterFontSubstitutors(vcl::font::PhysicalFontCollection* pFontCollection)
 {
+#ifdef EMSCRIPTEN
+    s_pFontCollection = pFontCollection;
+#endif
+
     // register font fallback substitutions
     static FcPreMatchSubstitution aSubstPreMatch;
     pFontCollection->SetPreMatchHook( &aSubstPreMatch );
@@ -133,6 +243,69 @@ bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rF
         return false;
 
     const bool bHaveSubstitute = !uselessmatch( rFontSelData, aOut );
+
+#ifdef EMSCRIPTEN
+    if (!bHaveSubstitute && s_pFontCollection)
+    {
+        if (s_aTriedFonts.find(rFontSelData.maTargetName) == s_aTriedFonts.end())
+        {
+            s_aTriedFonts.insert(rFontSelData.maTargetName);
+
+            OString aUtf8 = OUStringToOString(rFontSelData.maTargetName,
+                                               RTL_TEXTENCODING_UTF8);
+            SAL_INFO("vcl.fonts", "WASM font resolution: requesting \""
+                     << rFontSelData.maTargetName << "\" from host");
+
+            char* pPath = em_resolveFontFromHost(aUtf8.getStr());
+            if (pPath)
+            {
+                OUString aPath = OStringToOUString(
+                    OString(pPath), RTL_TEXTENCODING_UTF8);
+                free(pPath);
+
+                OUString aFileURL = "file://" + aPath;
+
+                SAL_INFO("vcl.fonts", "WASM font resolution: received path \""
+                         << aPath << "\", registering");
+
+                if (registerFontFromVFS(aFileURL, rFontSelData.maTargetName))
+                {
+                    // Retry fontconfig query -- the font should now be found
+                    OUString aDummy2;
+                    const vcl::font::FontSelectPattern aRetry
+                        = GetFcSubstitute(rFontSelData, aDummy2);
+
+                    if (!aRetry.maSearchName.isEmpty()
+                        && !uselessmatch(rFontSelData, aRetry))
+                    {
+                        SAL_INFO("vcl.fonts", "WASM font resolution: retry succeeded, "
+                                 "substituting to \"" << aRetry.maSearchName << "\"");
+
+                        rCachedFontMap.push_front(
+                            value_type(rFontSelData, aRetry));
+                        if (rCachedFontMap.size() > 256)
+                            rCachedFontMap.pop_back();
+                        rFontSelData = aRetry;
+                        return true;
+                    }
+
+                    SAL_WARN("vcl.fonts", "WASM font resolution: font registered but "
+                             "retry did not find a useful match");
+                }
+                else
+                {
+                    SAL_WARN("vcl.fonts", "WASM font resolution: registerFontFromVFS "
+                             "failed for \"" << aFileURL << "\"");
+                }
+            }
+            else
+            {
+                SAL_INFO("vcl.fonts", "WASM font resolution: host returned no font for \""
+                         << rFontSelData.maTargetName << "\"");
+            }
+        }
+    }
+#endif // EMSCRIPTEN
 
 #if OSL_DEBUG_LEVEL >= 2
     std::ostringstream oss;
