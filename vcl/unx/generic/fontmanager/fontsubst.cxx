@@ -215,12 +215,10 @@ bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rF
     }
 
     OUString aDummy;
-    const vcl::font::FontSelectPattern aOut = GetFcSubstitute( rFontSelData, aDummy );
+    vcl::font::FontSelectPattern aOut = GetFcSubstitute( rFontSelData, aDummy );
 
-    if( aOut.maSearchName.isEmpty() )
-        return false;
-
-    const bool bHaveSubstitute = !uselessmatch( rFontSelData, aOut );
+    const bool bHaveSubstitute = !aOut.maSearchName.isEmpty()
+                                 && !uselessmatch( rFontSelData, aOut );
 
 #ifdef EMSCRIPTEN
     if (!bHaveSubstitute && s_pFontCollection)
@@ -284,6 +282,9 @@ bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rF
         }
     }
 #endif // EMSCRIPTEN
+
+    if( aOut.maSearchName.isEmpty() )
+        return false;
 
 #if OSL_DEBUG_LEVEL >= 2
     std::ostringstream oss;
