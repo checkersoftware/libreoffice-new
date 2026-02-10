@@ -187,6 +187,10 @@ namespace
 
 bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rFontSelData) const
 {
+#ifdef EMSCRIPTEN
+    fprintf(stderr, "WASM FindFontSubstitute called for: %s\n",
+            OUStringToOString(rFontSelData.maTargetName, RTL_TEXTENCODING_UTF8).getStr());
+#endif
     // We don't actually want to talk to Fontconfig at all for symbol fonts
     if( rFontSelData.IsMicrosoftSymbolEncoded() )
         return false;
@@ -221,6 +225,8 @@ bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rF
                                  && !uselessmatch( rFontSelData, aOut );
 
 #ifdef EMSCRIPTEN
+    fprintf(stderr, "WASM bHaveSubstitute=%d s_pFontCollection=%p\n",
+            bHaveSubstitute, static_cast<void*>(s_pFontCollection));
     if (!bHaveSubstitute && s_pFontCollection)
     {
         if (s_aTriedFonts.find(rFontSelData.maTargetName) == s_aTriedFonts.end())
