@@ -33,6 +33,15 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [ ] 01-01-PLAN.md -- Build system FS export + WASM font resolution hook (EM_ASYNC_JS/EM_JS + intercept-register-retry in fontsubst.cxx)
 
+### Phase 01.1: debug font resolution hook not firing in WASM builds (INSERTED)
+
+**Goal:** Restore the three broken configuration/plumbing pieces (JSPI conditional, FS export, config include) and remove debug code so the Phase 1 font resolution hook works in non-JSPI WASM builds
+**Depends on:** Phase 1
+**Plans:** 1 plan
+
+Plans:
+- [ ] 01.1-01-PLAN.md -- Restore FS export + JSPI conditional with sync fallback + remove debug fprintf/console.warn
+
 ### Phase 2: Caching and Diagnostics
 **Goal**: Font resolution does not make redundant JavaScript calls, and the complete resolution flow is observable through diagnostic logging
 **Depends on**: Phase 1
@@ -61,10 +70,11 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3
+Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Core Font Resolution | 0/1 | Not started | - |
+| 1.1. Debug font resolution hook | 0/1 | Planned | - |
 | 2. Caching and Diagnostics | 0/TBD | Not started | - |
 | 3. Font Variant Support | 0/TBD | Not started | - |
