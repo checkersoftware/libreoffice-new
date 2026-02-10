@@ -26,7 +26,6 @@
 #include <unotools/fontdefs.hxx>
 
 #ifdef EMSCRIPTEN
-#include <config_emscripten.h>
 #include <emscripten.h>
 #include <set>
 #include <cstdlib>
@@ -69,15 +68,17 @@ static vcl::font::PhysicalFontCollection* s_pFontCollection = nullptr;
 // Prevents infinite recursion and serves as a negative cache.
 static std::set<OUString> s_aTriedFonts;
 
-#if HAVE_EMSCRIPTEN_JSPI
 // Async font resolution via JSPI. JS side implements Module.resolveSystemFont(familyName)
 // which returns Promise<ArrayBuffer|null>. JS writes font data to VFS via FS.writeFile()
 // and this function returns the VFS path as a C string (caller must free), or 0 on failure.
 EM_ASYNC_JS(char*, em_resolveFontFromHost, (const char* pFamilyName), {
     var familyName = UTF8ToString(pFamilyName);
+    console.warn('Module keys:', Object.keys(Module).filter(k => k.includes('resolve')));
+
     if (!Module.resolveSystemFont) {
         return 0;
     }
+
     try {
         var fontData = await Module.resolveSystemFont(familyName);
         if (!fontData || fontData.byteLength === 0) {
@@ -93,29 +94,6 @@ EM_ASYNC_JS(char*, em_resolveFontFromHost, (const char* pFamilyName), {
         return 0;
     }
 });
-
-#else // !HAVE_EMSCRIPTEN_JSPI
-
-// Synchronous fallback for builds without JSPI.
-// JS side must implement Module.resolveSystemFontSync(familyName) -> ArrayBuffer|null
-// (must be synchronous, e.g., using ipcRenderer.sendSync in Electron).
-EM_JS(char*, em_resolveFontFromHost, (const char* pFamilyName), {
-    var familyName = UTF8ToString(pFamilyName);
-    if (!Module.resolveSystemFontSync) {
-        return 0;
-    }
-    var fontData = Module.resolveSystemFontSync(familyName);
-    if (!fontData || fontData.byteLength === 0) {
-        return 0;
-    }
-    var safeName = familyName.replace(/[^a-zA-Z0-9_-]/g, '_');
-    var path = '/tmp/fonts/' + safeName + '.ttf';
-    try { FS.mkdirTree('/tmp/fonts'); } catch(e) {}
-    FS.writeFile(path, new Uint8Array(fontData));
-    return stringToNewUTF8(path);
-});
-
-#endif // HAVE_EMSCRIPTEN_JSPI
 
 // Register a font file from the VFS with the font pipeline.
 // Replicates the logic of FreeTypeTextRenderImpl::AddTempDevFont()
