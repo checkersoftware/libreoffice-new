@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 
 ## Current Position
 
-Phase: 1 of 2 (Core Font Resolution)
+Phase: 1.1 (Debug Font Resolution Hook)
 Plan: 1 of 1 in current phase
-Status: Phase 1 complete
-Last activity: 2026-02-10 -- Executed 01-01-PLAN.md
+Status: Fix applied, awaiting rebuild + verification
+Last activity: 2026-02-10 -- Root cause identified and fix applied to fontsubst.cxx
 
-Progress: [███░░░░░░░] 33%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
@@ -47,6 +47,10 @@ Recent decisions affecting current work:
 - [01-01]: Export FS unconditionally in EXPORTED_RUNTIME_METHODS -- FORCE_FILESYSTEM=1 already set, no size cost
 - [01-01]: Quality boost 5800 matches AddTempDevFont exactly for consistent font priority
 - [01-01]: s_aTriedFonts as both recursion guard and negative cache -- one JS call per font name per session
+- [01.1]: Root cause: bHaveSubstitute=1 always -- fontconfig always finds a substitute, blocking the WASM hook
+- [01.1]: Fix: gate on FindFontFamily() (actual collection presence) instead of !bHaveSubstitute
+- [01.1]: Move WASM block before GetFcSubstitute() -- resolve from host BEFORE fontconfig runs
+- [01.1]: Return false after registration -- let caller find font directly in collection via ImplFindFontFamilyBySearchName()
 
 ### Roadmap Evolution
 
@@ -61,9 +65,12 @@ None yet.
 - Confirm Electron version >= 30 for JSPI support (if < 30, synchronous-only fallback needed)
 - Verify HAVE_EMSCRIPTEN_JSPI is set for headless (non-Qt) WASM builds
 - JSPI export coverage: verify font substitution call site is covered or add to JSPI_EXPORTS
+- Separate abort issue: "libc++abi: terminating" from OOX StorageBase missing input stream -- NOT related to fonts, needs separate investigation
+- Electron printErr handler treats all stderr as errors -- should be fixed after font resolution works
 
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 01-01-PLAN.md (core font resolution hook)
+Stopped at: Phase 01.1 fix applied -- awaiting WASM rebuild and verification
 Resume file: None
+Next action: Push fontsubst.cxx to sysfont-wasm branch, rebuild WASM, verify font resolution fires
