@@ -35,12 +35,12 @@ Plans:
 
 ### Phase 01.1: debug font resolution hook not firing in WASM builds (INSERTED)
 
-**Goal:** Restore the three broken configuration/plumbing pieces (JSPI conditional, FS export, config include) and remove debug code so the Phase 1 font resolution hook works in non-JSPI WASM builds
+**Goal:** Investigate and fix why the Phase 1 WASM font resolution hook (EM_ASYNC_JS em_resolveFontFromHost) does not fire at runtime -- the JS callback is never called, fonts render with fallbacks, and the WASM runtime may abort with an uncaught exception
 **Depends on:** Phase 1
 **Plans:** 1 plan
 
 Plans:
-- [ ] 01.1-01-PLAN.md -- Restore FS export + JSPI conditional with sync fallback + remove debug fprintf/console.warn
+- [ ] 01.1-01-PLAN.md -- Add layered diagnostics to trace call chain, user verifies with rebuild, identify and fix root cause
 
 ### Phase 2: Caching and Diagnostics
 **Goal**: Font resolution does not make redundant JavaScript calls, and the complete resolution flow is observable through diagnostic logging
