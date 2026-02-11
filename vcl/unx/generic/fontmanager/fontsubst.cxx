@@ -73,31 +73,34 @@ static std::set<OUString> s_aTriedFonts;
 // because Emscripten's Module initialization drops custom properties.
 // Returns a VFS path as a C string (caller must free), or 0 on failure.
 EM_ASYNC_JS(char*, em_resolveFontFromHost, (const char* pFamilyName), {
-    var familyName = UTF8ToString(pFamilyName);
-    // Emscripten drops custom Module properties during init.
-    // The app stores the resolver on globalThis.__resolveSystemFont.
-    var resolver = globalThis.__resolveSystemFont;
+    // var familyName = UTF8ToString(pFamilyName);
+    // // Emscripten drops custom Module properties during init.
+    // // The app stores the resolver on globalThis.__resolveSystemFont.
+    // var resolver = globalThis.__resolveSystemFont;
 
-    if (!resolver) {
-        console.warn('em_resolveFontFromHost: no resolver available');
-        return 0;
-    }
+    // if (!resolver) {
+    //     console.warn('em_resolveFontFromHost: no resolver available');
+    //     return 0;
+    // }
 
-    try {
-        var fontData = await resolver(familyName);
-        if (!fontData || fontData.byteLength === 0) {
-            return 0;
-        }
-        var safeName = familyName.replace(/[^a-zA-Z0-9_-]/g, '_');
-        var path = '/tmp/fonts/' + safeName + '.ttf';
-        try { FS.mkdirTree('/tmp/fonts'); } catch(e) {}
-        FS.writeFile(path, new Uint8Array(fontData));
-        console.warn('em_resolveFontFromHost: wrote font to', path);
-        return stringToNewUTF8(path);
-    } catch(e) {
-        console.warn('WASM font resolution failed for: ' + familyName, e);
-        return 0;
-    }
+    // try {
+    //     var fontData = await resolver(familyName);
+    //     if (!fontData || fontData.byteLength === 0) {
+    //         return 0;
+    //     }
+    //     var safeName = familyName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    //     var path = '/tmp/fonts/' + safeName + '.ttf';
+    //     try { FS.mkdirTree('/tmp/fonts'); } catch(e) {}
+    //     FS.writeFile(path, new Uint8Array(fontData));
+    //     console.warn('em_resolveFontFromHost: wrote font to', path);
+    //     return stringToNewUTF8(path);
+    // } catch(e) {
+    //     console.warn('WASM font resolution failed for: ' + familyName, e);
+    //     return 0;
+    // }
+
+    console.warn("HALLO!");
+    return 0;
 });
 
 // Register a font file from the VFS with the font pipeline.
