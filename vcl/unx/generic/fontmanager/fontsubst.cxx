@@ -74,8 +74,6 @@ static std::set<OUString> s_aTriedFonts;
 // Returns a VFS path as a C string (caller must free), or 0 on failure.
 EM_ASYNC_JS(char*, em_resolveFontFromHost, (const char* pFamilyName), {
     var familyName = UTF8ToString(pFamilyName);
-    console.warn('em_resolveFontFromHost ENTERED for:', familyName);
-
     // Emscripten drops custom Module properties during init.
     // The app stores the resolver on globalThis.__resolveSystemFont.
     var resolver = (typeof globalThis !== 'undefined' && globalThis.__resolveSystemFont)
@@ -195,10 +193,6 @@ namespace
 
 bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rFontSelData) const
 {
-#ifdef EMSCRIPTEN
-    fprintf(stderr, "WASM FindFontSubstitute called for: %s\n",
-            OUStringToOString(rFontSelData.maTargetName, RTL_TEXTENCODING_UTF8).getStr());
-#endif
     // We don't actually want to talk to Fontconfig at all for symbol fonts
     if( rFontSelData.IsMicrosoftSymbolEncoded() )
         return false;
@@ -240,8 +234,6 @@ bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rF
 
             OString aUtf8 = OUStringToOString(rFontSelData.maTargetName,
                                                RTL_TEXTENCODING_UTF8);
-            fprintf(stderr, "WASM font not in collection, requesting from host: %s\n",
-                    aUtf8.getStr());
             SAL_INFO("vcl.fonts", "WASM font resolution: requesting \""
                      << rFontSelData.maTargetName << "\" from host");
 
@@ -253,14 +245,11 @@ bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rF
                 free(pPath);
 
                 OUString aFileURL = "file://" + aPath;
-
-                fprintf(stderr, "WASM font resolved, registering: %s\n", aUtf8.getStr());
                 SAL_INFO("vcl.fonts", "WASM font resolution: received path \""
                          << aPath << "\", registering");
 
                 if (registerFontFromVFS(aFileURL, rFontSelData.maTargetName))
                 {
-                    fprintf(stderr, "WASM font registered successfully: %s\n", aUtf8.getStr());
                     SAL_INFO("vcl.fonts", "WASM font resolution: registered, "
                              "caller will find it in collection");
                     // Font now in the PhysicalFontCollection. Return false
@@ -275,14 +264,13 @@ bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rF
             }
             else
             {
-                fprintf(stderr, "WASM host returned no font for: %s\n", aUtf8.getStr());
                 SAL_INFO("vcl.fonts", "WASM font resolution: host returned no font for \""
                          << rFontSelData.maTargetName << "\"");
             }
         }
         else
         {
-            fprintf(stderr, "WASM font already tried, skipping: %s\n",
+            SAL_INFO(stderr, "WASM font already tried, skipping: %s\n",
                     OUStringToOString(rFontSelData.maTargetName, RTL_TEXTENCODING_UTF8).getStr());
         }
     }
