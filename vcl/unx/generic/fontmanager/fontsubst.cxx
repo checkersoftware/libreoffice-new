@@ -68,26 +68,26 @@ static vcl::font::PhysicalFontCollection* s_pFontCollection = nullptr;
 // Prevents infinite recursion and serves as a negative cache.
 static std::set<OUString> s_aTriedFonts;
 
-// Async font resolution via JSPI. JS side implements Module.resolveSystemFont(familyName)
-// which returns Promise<ArrayBuffer|null>. JS writes font data to VFS via FS.writeFile()
-// and this function returns the VFS path as a C string (caller must free), or 0 on failure.
-// NOTE: If JSPI is enabled but em_resolveFontFromHost crashes or returns
-// unexpectedly, verify that the function (or its __asyncjs__ wrapper) is
-// listed in JSPI_EXPORTS in EMSCRIPTEN_INTEL_GCC.mk. EM_ASYNC_JS may
-// require explicit JSPI_EXPORTS registration depending on Emscripten version.
+// Async font resolution via JSPI. The resolver callback is stored on
+// globalThis.__resolveSystemFont by the Electron app (libreoffice-wasm.ts)
+// because Emscripten's Module initialization drops custom properties.
+// Returns a VFS path as a C string (caller must free), or 0 on failure.
 EM_ASYNC_JS(char*, em_resolveFontFromHost, (const char* pFamilyName), {
-    console.warn('em_resolveFontFromHost ENTERED for:', UTF8ToString(pFamilyName));
     var familyName = UTF8ToString(pFamilyName);
-    console.warn('Module.resolveSystemFont:', typeof Module.resolveSystemFont);
-    console.warn('Module.print:', typeof Module.print);
-    console.warn('Module key count:', Object.keys(Module).length);
+    console.warn('em_resolveFontFromHost ENTERED for:', familyName);
 
-    if (!Module.resolveSystemFont) {
+    // Emscripten drops custom Module properties during init.
+    // The app stores the resolver on globalThis.__resolveSystemFont.
+    var resolver = (typeof globalThis !== 'undefined' && globalThis.__resolveSystemFont)
+                || Module.resolveSystemFont;
+
+    if (!resolver) {
+        console.warn('em_resolveFontFromHost: no resolver available');
         return 0;
     }
 
     try {
-        var fontData = await Module.resolveSystemFont(familyName);
+        var fontData = await resolver(familyName);
         if (!fontData || fontData.byteLength === 0) {
             return 0;
         }
@@ -95,6 +95,7 @@ EM_ASYNC_JS(char*, em_resolveFontFromHost, (const char* pFamilyName), {
         var path = '/tmp/fonts/' + safeName + '.ttf';
         try { FS.mkdirTree('/tmp/fonts'); } catch(e) {}
         FS.writeFile(path, new Uint8Array(fontData));
+        console.warn('em_resolveFontFromHost: wrote font to', path);
         return stringToNewUTF8(path);
     } catch(e) {
         console.warn('WASM font resolution failed for: ' + familyName, e);
