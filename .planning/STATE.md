@@ -9,7 +9,7 @@ See: .planning/PROJECT.md (updated 2026-02-09)
 
 ## Current Position
 
-Phase: 1 of 3 (Core Font Resolution)
+Phase: 1 of 2 (Core Font Resolution)
 Plan: 1 of 1 in current phase
 Status: Phase 1 complete
 Last activity: 2026-02-10 -- Executed 01-01-PLAN.md
@@ -47,6 +47,10 @@ Recent decisions affecting current work:
 - [01-01]: Export FS unconditionally in EXPORTED_RUNTIME_METHODS -- FORCE_FILESYSTEM=1 already set, no size cost
 - [01-01]: Quality boost 5800 matches AddTempDevFont exactly for consistent font priority
 - [01-01]: s_aTriedFonts as both recursion guard and negative cache -- one JS call per font name per session
+
+### Roadmap Evolution
+
+- Phase 1.1 inserted after Phase 1: debug font resolution hook not firing in WASM builds (URGENT)
 
 ### Pending Todos
 
