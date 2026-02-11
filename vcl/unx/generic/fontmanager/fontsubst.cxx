@@ -78,7 +78,9 @@ static std::set<OUString> s_aTriedFonts;
 EM_ASYNC_JS(char*, em_resolveFontFromHost, (const char* pFamilyName), {
     console.warn('em_resolveFontFromHost ENTERED for:', UTF8ToString(pFamilyName));
     var familyName = UTF8ToString(pFamilyName);
-    console.warn('Module keys:', Object.keys(Module).filter(k => k.includes('resolve')));
+    console.warn('Module.resolveSystemFont:', typeof Module.resolveSystemFont);
+    console.warn('Module.print:', typeof Module.print);
+    console.warn('Module key count:', Object.keys(Module).length);
 
     if (!Module.resolveSystemFont) {
         return 0;
