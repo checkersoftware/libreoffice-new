@@ -76,8 +76,7 @@ EM_ASYNC_JS(char*, em_resolveFontFromHost, (const char* pFamilyName), {
     var familyName = UTF8ToString(pFamilyName);
     // Emscripten drops custom Module properties during init.
     // The app stores the resolver on globalThis.__resolveSystemFont.
-    var resolver = (typeof globalThis !== 'undefined' && globalThis.__resolveSystemFont)
-                || Module.resolveSystemFont;
+    var resolver = globalThis.__resolveSystemFont;
 
     if (!resolver) {
         console.warn('em_resolveFontFromHost: no resolver available');
