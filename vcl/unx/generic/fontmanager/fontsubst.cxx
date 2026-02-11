@@ -270,8 +270,8 @@ bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rF
         }
         else
         {
-            SAL_INFO(stderr, "WASM font already tried, skipping: %s\n",
-                    OUStringToOString(rFontSelData.maTargetName, RTL_TEXTENCODING_UTF8).getStr());
+            SAL_INFO("vcl.fonts", "WASM font already tried, skipping: \""
+                     << rFontSelData.maTargetName << "\"");
         }
     }
 #endif // EMSCRIPTEN
