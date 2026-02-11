@@ -50,10 +50,10 @@ Plans:
   1. A font that JavaScript reported as unavailable triggers only ONE JavaScript call per session, regardless of how many times document layout requests it
   2. A font that was previously fetched and registered triggers zero additional JavaScript calls on subsequent lookups
   3. Setting SAL_LOG=+INFO.vcl.fonts shows the complete font resolution flow: font name requested, cache hit/miss, JavaScript call made, response received, AddTempDevFont result, and retry outcome
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md -- Replace s_aTriedFonts with two-state WasmFontCache, add re-registration guard, and SAL_INFO diagnostic logging
 
 ### Phase 3: Font Variant Support
 **Goal**: The host can provide the exact font variant (bold, italic, condensed) a document needs, and TrueType Collection files register all contained faces
@@ -76,5 +76,5 @@ Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3
 |-------|----------------|--------|-----------|
 | 1. Core Font Resolution | 0/1 | Not started | - |
 | 1.1. Debug font resolution hook | 0/1 | Planned | - |
-| 2. Caching and Diagnostics | 0/TBD | Not started | - |
+| 2. Caching and Diagnostics | 0/1 | Planned | - |
 | 3. Font Variant Support | 0/TBD | Not started | - |
