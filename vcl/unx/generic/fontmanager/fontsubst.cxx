@@ -27,6 +27,8 @@
 
 #ifdef EMSCRIPTEN
 #include <emscripten.h>
+#include <emscripten/proxying.h>
+#include <emscripten/threading.h>
 #include <set>
 #include <cstdlib>
 #include <unx/freetype_glyphcache.hxx>
@@ -68,40 +70,82 @@ static vcl::font::PhysicalFontCollection* s_pFontCollection = nullptr;
 // Prevents infinite recursion and serves as a negative cache.
 static std::set<OUString> s_aTriedFonts;
 
-// Async font resolution via JSPI. The resolver callback is stored on
-// globalThis.__resolveSystemFont by the Electron app (libreoffice-wasm.ts)
-// because Emscripten's Module initialization drops custom properties.
-// Returns a VFS path as a C string (caller must free), or 0 on failure.
-EM_ASYNC_JS(char*, em_resolveFontFromHost, (const char* pFamilyName), {
-    // var familyName = UTF8ToString(pFamilyName);
-    // // Emscripten drops custom Module properties during init.
-    // // The app stores the resolver on globalThis.__resolveSystemFont.
-    // var resolver = globalThis.__resolveSystemFont;
+// Data shared between the calling pthread and the main-thread proxy callback.
+struct FontResolveRequest
+{
+    const char* pFamilyName;   // input: font family name (UTF-8)
+    char* pResultPath;         // output: VFS path (caller must free) or nullptr
+    em_proxying_ctx* pCtx;     // set by the proxy callback
+};
 
-    // if (!resolver) {
-    //     console.warn('em_resolveFontFromHost: no resolver available');
-    //     return 0;
-    // }
+// Starts async font resolution on the main thread. When the Promise resolves
+// (or rejects), calls _em_fontResolveComplete which signals the waiting pthread.
+// The resolver callback is stored on globalThis.__resolveSystemFont by the
+// Electron app (libreoffice-wasm.ts).
+EM_JS(void, em_startFontResolve, (const char* pFamilyName, void* pReq), {
+    var familyName = UTF8ToString(pFamilyName);
+    var resolver = globalThis.__resolveSystemFont;
 
-    // try {
-    //     var fontData = await resolver(familyName);
-    //     if (!fontData || fontData.byteLength === 0) {
-    //         return 0;
-    //     }
-    //     var safeName = familyName.replace(/[^a-zA-Z0-9_-]/g, '_');
-    //     var path = '/tmp/fonts/' + safeName + '.ttf';
-    //     try { FS.mkdirTree('/tmp/fonts'); } catch(e) {}
-    //     FS.writeFile(path, new Uint8Array(fontData));
-    //     console.warn('em_resolveFontFromHost: wrote font to', path);
-    //     return stringToNewUTF8(path);
-    // } catch(e) {
-    //     console.warn('WASM font resolution failed for: ' + familyName, e);
-    //     return 0;
-    // }
+    if (!resolver) {
+        console.warn('em_startFontResolve: no resolver available');
+        _em_fontResolveComplete(pReq, 0);
+        return;
+    }
 
-    console.warn("HALLO!");
-    return 0;
+    resolver(familyName).then(function(fontData) {
+        if (!fontData || fontData.byteLength === 0) {
+            _em_fontResolveComplete(pReq, 0);
+            return;
+        }
+        var safeName = familyName.replace(/[^a-zA-Z0-9_-]/g, '_');
+        var path = '/tmp/fonts/' + safeName + '.ttf';
+        try { FS.mkdirTree('/tmp/fonts'); } catch(e) {}
+        FS.writeFile(path, new Uint8Array(fontData));
+        console.warn('em_startFontResolve: wrote font to', path);
+        _em_fontResolveComplete(pReq, stringToNewUTF8(path));
+    }).catch(function(e) {
+        console.warn('em_startFontResolve: failed for ' + familyName, e);
+        _em_fontResolveComplete(pReq, 0);
+    });
 });
+
+// Called by JS when async font resolution completes.
+// Stores the result path and signals the waiting pthread via proxy_finish.
+extern "C" EMSCRIPTEN_KEEPALIVE
+void em_fontResolveComplete(void* pReq, char* pPath)
+{
+    auto* pRequest = static_cast<FontResolveRequest*>(pReq);
+    pRequest->pResultPath = pPath;
+    emscripten_proxy_finish(pRequest->pCtx);
+}
+
+// Proxy callback: runs on the main thread, kicks off async font resolution.
+// Does NOT call emscripten_proxy_finish -- the JS completion handler does that.
+static void fontResolveOnMainThread(em_proxying_ctx* ctx, void* pArg)
+{
+    auto* pRequest = static_cast<FontResolveRequest*>(pArg);
+    pRequest->pCtx = ctx;
+    em_startFontResolve(pRequest->pFamilyName, pArg);
+}
+
+// Resolve a font from the host JS environment. Blocks the calling pthread
+// until the main thread completes the async resolution.
+// Returns a VFS path as a C string (caller must free), or nullptr.
+static char* resolveFontFromHost(const char* pFamilyName)
+{
+    FontResolveRequest aRequest;
+    aRequest.pFamilyName = pFamilyName;
+    aRequest.pResultPath = nullptr;
+    aRequest.pCtx = nullptr;
+
+    emscripten_proxy_sync_with_ctx(
+        emscripten_proxy_get_system_queue(),
+        emscripten_main_runtime_thread_id(),
+        fontResolveOnMainThread,
+        &aRequest);
+
+    return aRequest.pResultPath;
+}
 
 // Register a font file from the VFS with the font pipeline.
 // Replicates the logic of FreeTypeTextRenderImpl::AddTempDevFont()
@@ -239,7 +283,7 @@ bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rF
             SAL_INFO("vcl.fonts", "WASM font resolution: requesting \""
                      << rFontSelData.maTargetName << "\" from host");
 
-            char* pPath = em_resolveFontFromHost(aUtf8.getStr());
+            char* pPath = resolveFontFromHost(aUtf8.getStr());
             if (pPath)
             {
                 OUString aPath = OStringToOUString(

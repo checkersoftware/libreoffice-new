@@ -1,14 +1,12 @@
---disable-debug
---disable-crashdump
 --host=wasm32-local-emscripten
---disable-gui
---disable-firebird-sdbc
 --with-wasm-module=calc writer impress
 --with-package-format=emscripten
---enable-wasm-strip
---enable-emscripten-jspi
---enable-sal-log
+--with-parallelism
 --without-fonts
+--disable-gui
+--disable-firebird-sdbc
+--disable-debug
+--disable-crashdump
 --disable-scripting
 --disable-extensions
 --disable-extension-integration
@@ -25,5 +23,6 @@
 --disable-gio
 --disable-online-update
 --without-helppack-integration
+--enable-wasm-strip
+--enable-sal-log
 --enable-ccache
---with-parallelism
