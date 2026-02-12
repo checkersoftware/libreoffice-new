@@ -67,6 +67,15 @@ Plans:
 Plans:
 - [ ] 03-01-PLAN.md -- Multi-variant ArrayBuffer[] resolution, family-name-only negative cache, FreeType-extracted names, TTC support
 
+### Phase 03.1: Investigate correct hook point for WASM system font resolution (INSERTED)
+
+**Goal:** Fix the WASM font resolution hook firing too broadly -- add guards to prevent JS resolution for fonts with bundled metric-compatible substitutes and known LO default/UI fonts, while still allowing resolution for genuinely missing document fonts
+**Depends on:** Phase 3
+**Plans:** 1 plan
+
+Plans:
+- [ ] 03.1-01-PLAN.md -- Add metric-compatible and known-default guard functions to EMSCRIPTEN block in fontsubst.cxx
+
 ## Progress
 
 **Execution Order:**
@@ -78,3 +87,4 @@ Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3
 | 1.1. Debug font resolution hook | 0/1 | Planned | - |
 | 2. Caching and Diagnostics | 1/1 | ✓ Complete | 2026-02-11 |
 | 3. Font Variant Support | 1/1 | ✓ Complete | 2026-02-12 |
+| 3.1. Correct hook point filtering | 0/1 | Planned | - |
