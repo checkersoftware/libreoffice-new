@@ -5,33 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** When LibreOffice WASM can't find a requested font, it calls out to JavaScript so the host can provide font data from the system -- eliminating the need to bundle most fonts.
-**Current focus:** Phase 1: Core Font Resolution
+**Current focus:** Phase 3: Font Variant Support
 
 ## Current Position
 
-Phase: 2 (Caching and Diagnostics)
+Phase: 3 (Font Variant Support)
 Plan: 1 of 1 in current phase
 Status: Complete
-Last activity: 2026-02-11 -- Negative cache and diagnostic logging applied to fontsubst.cxx
+Last activity: 2026-02-12 -- Multi-variant ArrayBuffer[] resolution, family-name-only cache, FreeType-extracted names
 
-Progress: [██████░░░░] 60%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 3min
-- Total execution time: 3min
+- Total plans completed: 2
+- Average duration: 4min
+- Total execution time: 8min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-core-font-resolution | 1 | 3min | 3min |
+| 03-font-variant-support | 1 | 5min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3min)
-- Trend: n/a (first plan)
+- Last 5 plans: 01-01 (3min), 03-01 (5min)
+- Trend: stable
 
 *Updated after each plan completion*
 
@@ -51,6 +52,9 @@ Recent decisions affecting current work:
 - [01.1]: Fix: gate on FindFontFamily() (actual collection presence) instead of !bHaveSubstitute
 - [01.1]: Move WASM block before GetFcSubstitute() -- resolve from host BEFORE fontconfig runs
 - [01.1]: Return false after registration -- let caller find font directly in collection via ImplFindFontFamilyBySearchName()
+- [03-01]: Strict ArrayBuffer[] API -- no single-buffer backward compat
+- [03-01]: Family-name-only negative cache -- one JS call covers all variants
+- [03-01]: Removed SetFamilyName override -- FreeType extracts real metadata for IsBetterMatch() scoring
 
 ### Roadmap Evolution
 
@@ -70,7 +74,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-11
-Stopped at: Phase 02 complete -- negative cache and diagnostics applied
+Last session: 2026-02-12
+Stopped at: Phase 03 complete -- multi-variant font resolution applied
 Resume file: None
-Next action: Verify phase 2, then plan phase 3 (font variant support)
+Next action: Verify phase 3 goal achievement
