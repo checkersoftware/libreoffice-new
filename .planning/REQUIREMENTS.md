@@ -51,10 +51,10 @@
 **Description:** Log font resolution activity using the existing `SAL_INFO("vcl.fonts", ...)` pattern. Log: font name requested, cache hit/miss, JS call made, JS response (success/null), `AddTempDevFont` result (success/failure), retry outcome.
 **Acceptance:** Setting `SAL_LOG=+INFO.vcl.fonts` shows the complete font resolution flow for debugging.
 
-### REQ-F10: Font Style/Weight/Width/Pitch Hints
+### REQ-F10: Font Variant Selection
 **Priority:** P2 (Differentiator -- included in v1)
-**Description:** Forward `FontWeight` (BOLD, NORMAL, etc.), `FontItalic` (NONE, OBLIQUE, NORMAL), `FontWidth` (CONDENSED, NORMAL, EXPANDED), and `FontPitch` (FIXED, VARIABLE) from `FontSelectPattern` alongside the family name to the JS callback. This enables the host to return the correct font variant (e.g., `Calibri-Bold.ttf` instead of `Calibri-Regular.ttf`).
-**Acceptance:** A document using bold Arial triggers a JS callback that includes weight=BOLD, and the host can distinguish this from a regular-weight request.
+**Description:** When a font family is requested, the JS callback returns ALL variants (regular, bold, italic, etc.) as `ArrayBuffer[]`. C++ registers every variant via FreeType, which extracts real `FontWeight`, `FontItalic`, `FontWidth`, and `FontPitch` from each file's OS/2 table. The existing `PhysicalFontFace::IsBetterMatch()` scoring system then selects the correct variant for the document's style request.
+**Acceptance:** A document using bold Arial triggers a JS callback for "Arial" that returns all variants. After registration, the bold variant is selected by C++ font matching, and bold text renders correctly.
 
 ### REQ-F11: TTC (TrueType Collection) Support
 **Priority:** P2 (Differentiator -- included in v1)

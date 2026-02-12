@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Core Font Resolution** - End-to-end JSPI bridge, font request, VFS write, registration, and fallback
 - [ ] **Phase 2: Caching and Diagnostics** - Negative cache, re-registration guard, and structured logging
-- [ ] **Phase 3: Font Variant Support** - Style/weight/width/pitch hints and TTC collection files
+- [x] **Phase 3: Font Variant Support** - Style/weight/width/pitch hints and TTC collection files
 
 ## Phase Details
 
@@ -77,4 +77,4 @@ Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3
 | 1. Core Font Resolution | 0/1 | Not started | - |
 | 1.1. Debug font resolution hook | 0/1 | Planned | - |
 | 2. Caching and Diagnostics | 1/1 | ✓ Complete | 2026-02-11 |
-| 3. Font Variant Support | 0/1 | Not started | - |
+| 3. Font Variant Support | 1/1 | ✓ Complete | 2026-02-12 |
