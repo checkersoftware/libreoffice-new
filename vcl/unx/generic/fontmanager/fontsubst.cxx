@@ -30,7 +30,6 @@
 #include <emscripten/proxying.h>
 #include <emscripten/threading.h>
 #include <unordered_set>
-#include <functional>
 #include <cstdlib>
 #include <unx/freetype_glyphcache.hxx>
 #include <sal/log.hxx>
@@ -67,46 +66,16 @@ public:
 // Lifetime matches the application -- the collection is never rebuilt.
 static vcl::font::PhysicalFontCollection* s_pFontCollection = nullptr;
 
-// Negative cache: fonts that JS reported as unavailable or that failed registration.
-// Keyed by family name + style hints so Phase 3 variant support works automatically.
-struct WasmFontCacheKey
-{
-    OUString maFamilyName;
-    FontWeight meWeight;
-    FontItalic meItalic;
-    FontWidth meWidthType;
-    FontPitch mePitch;
-
-    bool operator==(const WasmFontCacheKey& rOther) const
-    {
-        return maFamilyName == rOther.maFamilyName
-            && meWeight == rOther.meWeight
-            && meItalic == rOther.meItalic
-            && meWidthType == rOther.meWidthType
-            && mePitch == rOther.mePitch;
-    }
-};
-
-struct WasmFontCacheKeyHash
-{
-    size_t operator()(const WasmFontCacheKey& rKey) const
-    {
-        size_t nHash = rKey.maFamilyName.hashCode();
-        nHash ^= std::hash<int>()(static_cast<int>(rKey.meWeight)) + 0x9e3779b9 + (nHash << 6) + (nHash >> 2);
-        nHash ^= std::hash<int>()(static_cast<int>(rKey.meItalic)) + 0x9e3779b9 + (nHash << 6) + (nHash >> 2);
-        nHash ^= std::hash<int>()(static_cast<int>(rKey.meWidthType)) + 0x9e3779b9 + (nHash << 6) + (nHash >> 2);
-        nHash ^= std::hash<int>()(static_cast<int>(rKey.mePitch)) + 0x9e3779b9 + (nHash << 6) + (nHash >> 2);
-        return nHash;
-    }
-};
-
-static std::unordered_set<WasmFontCacheKey, WasmFontCacheKeyHash> s_aWasmNegativeCache;
+// Negative cache: font families that JS reported as unavailable or where all
+// registrations failed. Keyed by family name only — when JS returns all variants
+// for a family at once, we only need one cache entry per family.
+static std::unordered_set<OUString> s_aWasmNegativeCache;
 
 // Data shared between the calling pthread and the main-thread proxy callback.
 struct FontResolveRequest
 {
     const char* pFamilyName;   // input: font family name (UTF-8)
-    char* pResultPath;         // output: VFS path (caller must free) or nullptr
+    char* pResultPath;         // output: newline-separated VFS paths (caller must free) or nullptr
     em_proxying_ctx* pCtx;     // set by the proxy callback
 };
 
@@ -124,17 +93,38 @@ EM_JS(void, em_startFontResolve, (const char* pFamilyName, void* pReq), {
         return;
     }
 
-    resolver(familyName).then(function(fontData) {
-        if (!fontData || fontData.byteLength === 0) {
+    resolver(familyName).then(function(fontDataArray) {
+        // Strict API: resolver MUST return ArrayBuffer[]. No single-buffer compat.
+        if (!Array.isArray(fontDataArray) || fontDataArray.length === 0) {
+            console.warn('em_startFontResolve: empty or non-array result for ' + familyName);
             _em_fontResolveComplete(pReq, 0);
             return;
         }
+
         var safeName = familyName.replace(/[^a-zA-Z0-9_-]/g, '_');
-        var path = '/tmp/fonts/' + safeName + '.ttf';
         try { FS.mkdirTree('/tmp/fonts'); } catch(e) {}
-        FS.writeFile(path, new Uint8Array(fontData));
-        console.warn('em_startFontResolve: wrote font to', path);
-        _em_fontResolveComplete(pReq, stringToNewUTF8(path));
+
+        var paths = [];
+        for (var i = 0; i < fontDataArray.length; i++) {
+            var buf = fontDataArray[i];
+            if (!buf || buf.byteLength === 0) {
+                console.warn('em_startFontResolve: skipping empty buffer at index ' + i + ' for ' + familyName);
+                continue;
+            }
+            var path = '/tmp/fonts/' + safeName + '_' + i + '.ttf';
+            FS.writeFile(path, new Uint8Array(buf));
+            paths.push(path);
+        }
+
+        if (paths.length === 0) {
+            console.warn('em_startFontResolve: all buffers empty for ' + familyName);
+            _em_fontResolveComplete(pReq, 0);
+            return;
+        }
+
+        var result = paths.join('\n');
+        console.warn('em_startFontResolve: wrote ' + paths.length + ' font file(s) for ' + familyName);
+        _em_fontResolveComplete(pReq, stringToNewUTF8(result));
     }).catch(function(e) {
         console.warn('em_startFontResolve: failed for ' + familyName, e);
         _em_fontResolveComplete(pReq, 0);
@@ -182,7 +172,8 @@ static char* resolveFontFromHost(const char* pFamilyName)
 // Register a font file from the VFS with the font pipeline.
 // Replicates the logic of FreeTypeTextRenderImpl::AddTempDevFont()
 // using singletons (PrintFontManager, FreetypeManager) and the stored
-// PhysicalFontCollection pointer. Returns true on success.
+// PhysicalFontCollection pointer. The font's family name and style
+// attributes are extracted by FreeType, not overridden. Returns true on success.
 static bool registerFontFromVFS(const OUString& rFileURL, const OUString& rFontName)
 {
     if (!s_pFontCollection)
@@ -202,8 +193,9 @@ static bool registerFontFromVFS(const OUString& rFileURL, const OUString& rFontN
 
         FontAttributes aDFA = pFont->m_aFontAttributes;
         aDFA.IncreaseQualityBy(5800);
-        if (!rFontName.isEmpty())
-            aDFA.SetFamilyName(rFontName);
+        // Do NOT override family name — let FreeType's extracted name from the
+        // font file's name table stand. This ensures each variant (Regular, Bold,
+        // Italic, etc.) keeps its correct metadata for IsBetterMatch() scoring.
 
         int nFaceNum = rMgr.getFontFaceNumber(nFontId);
         int nVariantNum = rMgr.getFontFaceVariation(nFontId);
@@ -302,19 +294,12 @@ bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rF
     if (s_pFontCollection
         && !s_pFontCollection->FindFontFamily(rFontSelData.maTargetName))
     {
-        WasmFontCacheKey aCacheKey{
-            rFontSelData.maTargetName,
-            rFontSelData.GetWeight(),
-            rFontSelData.GetItalic(),
-            rFontSelData.GetWidthType(),
-            rFontSelData.GetPitch()
-        };
+        OUString aFamilyKey = rFontSelData.maTargetName;
 
-        if (s_aWasmNegativeCache.count(aCacheKey))
+        if (s_aWasmNegativeCache.count(aFamilyKey))
         {
             SAL_INFO("vcl.fonts", "WASM font cache: negative hit for \""
-                     << rFontSelData.maTargetName
-                     << "\", skipping JS call");
+                     << aFamilyKey << "\", skipping JS call");
             // Fall through to fontconfig substitution
         }
         else
@@ -328,37 +313,58 @@ bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rF
 
             OString aUtf8 = OUStringToOString(rFontSelData.maTargetName,
                                                RTL_TEXTENCODING_UTF8);
-            char* pPath = resolveFontFromHost(aUtf8.getStr());
-            if (pPath)
+            char* pPaths = resolveFontFromHost(aUtf8.getStr());
+            if (pPaths)
             {
-                OUString aPath = OStringToOUString(
-                    OString(pPath), RTL_TEXTENCODING_UTF8);
-                free(pPath);
+                OUString aPaths = OStringToOUString(
+                    OString(pPaths), RTL_TEXTENCODING_UTF8);
+                free(pPaths);
 
-                OUString aFileURL = "file://" + aPath;
-                SAL_INFO("vcl.fonts", "WASM font resolution: JS returned \""
-                         << aPath << "\" for \""
+                // Split newline-separated paths and register each font file
+                sal_Int32 nIdx = 0;
+                int nRegistered = 0;
+                int nTotal = 0;
+                do {
+                    OUString aPath = aPaths.getToken(0, '\n', nIdx);
+                    if (aPath.isEmpty())
+                        continue;
+                    nTotal++;
+                    OUString aFileURL = "file://" + aPath;
+                    // Pass empty font name — let FreeType extract the real
+                    // family name from the font file's name table.
+                    if (registerFontFromVFS(aFileURL, OUString()))
+                    {
+                        nRegistered++;
+                        SAL_INFO("vcl.fonts", "WASM font resolution: registered \""
+                                 << aPath << "\" (" << nRegistered << "/" << nTotal << ")");
+                    }
+                    else
+                    {
+                        SAL_WARN("vcl.fonts", "WASM font resolution: registration "
+                                 "failed for \"" << aFileURL << "\"");
+                    }
+                } while (nIdx >= 0);
+
+                SAL_INFO("vcl.fonts", "WASM font resolution: " << nRegistered
+                         << " of " << nTotal << " file(s) registered for \""
                          << rFontSelData.maTargetName << "\"");
 
-                if (registerFontFromVFS(aFileURL, rFontSelData.maTargetName))
+                if (nRegistered > 0)
                 {
-                    SAL_INFO("vcl.fonts", "WASM font resolution: registration "
-                             "succeeded for \""
-                             << rFontSelData.maTargetName << "\"");
-                    // No positive cache needed -- font is now in PhysicalFontCollection,
-                    // so FindFontFamily() in the caller finds it before we're called again.
+                    // Success — fonts are now in PhysicalFontCollection.
+                    // Return false so the caller's ImplFindFontFamilyBySearchName()
+                    // finds the newly registered font directly.
                     return false;
                 }
 
-                SAL_WARN("vcl.fonts", "WASM font resolution: registration "
-                         "failed for \"" << aFileURL << "\"");
-                s_aWasmNegativeCache.insert(aCacheKey);
+                // All registrations failed — treat as unavailable
+                s_aWasmNegativeCache.insert(aFamilyKey);
             }
             else
             {
                 SAL_INFO("vcl.fonts", "WASM font resolution: JS returned "
                          "empty for \"" << rFontSelData.maTargetName << "\"");
-                s_aWasmNegativeCache.insert(aCacheKey);
+                s_aWasmNegativeCache.insert(aFamilyKey);
             }
         }
     }
