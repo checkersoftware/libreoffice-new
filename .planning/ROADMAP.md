@@ -62,10 +62,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. A document using bold Arial triggers a JavaScript callback that includes weight, italic, width, and pitch hints alongside the family name, enabling the host to distinguish "Arial Bold" from "Arial Regular"
   2. A CJK .ttc (TrueType Collection) font file provided by the host registers all contained faces and renders CJK text correctly
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md -- Multi-variant ArrayBuffer[] resolution, family-name-only negative cache, FreeType-extracted names, TTC support
 
 ## Progress
 
@@ -77,4 +77,4 @@ Phases execute in numeric order: 1 -> 1.1 -> 2 -> 3
 | 1. Core Font Resolution | 0/1 | Not started | - |
 | 1.1. Debug font resolution hook | 0/1 | Planned | - |
 | 2. Caching and Diagnostics | 1/1 | ✓ Complete | 2026-02-11 |
-| 3. Font Variant Support | 0/TBD | Not started | - |
+| 3. Font Variant Support | 0/1 | Not started | - |
