@@ -59,6 +59,7 @@ Recent decisions affecting current work:
 ### Roadmap Evolution
 
 - Phase 1.1 inserted after Phase 1: debug font resolution hook not firing in WASM builds (URGENT)
+- Phase 3.1 inserted after Phase 3: investigate correct hook point for WASM system font resolution (URGENT)
 
 ### Pending Todos
 
