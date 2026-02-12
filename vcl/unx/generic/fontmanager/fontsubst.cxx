@@ -192,7 +192,6 @@ static bool registerFontFromVFS(const OUString& rFileURL, const OUString& rFontN
             continue;
 
         FontAttributes aDFA = pFont->m_aFontAttributes;
-        aDFA.IncreaseQualityBy(5800);
         // Do NOT override family name — let FreeType's extracted name from the
         // font file's name table stand. This ensures each variant (Regular, Bold,
         // Italic, etc.) keeps its correct metadata for IsBetterMatch() scoring.

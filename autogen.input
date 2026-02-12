@@ -24,5 +24,4 @@
 --disable-online-update
 --without-helppack-integration
 --enable-wasm-strip
---enable-sal-log
 --enable-ccache
