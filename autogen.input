@@ -2,7 +2,7 @@
 --with-wasm-module=calc writer impress
 --with-package-format=emscripten
 --with-lang=""
---with-locales="en"
+--with-locales=en
 --with-parallelism
 --without-fonts
 --disable-gui
