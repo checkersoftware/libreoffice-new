@@ -27,3 +27,4 @@
 --without-helppack-integration
 --enable-wasm-strip
 --enable-ccache
+--enable-customtarget-components
