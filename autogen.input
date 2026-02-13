@@ -28,3 +28,4 @@
 --enable-wasm-strip
 --enable-ccache
 --enable-customtarget-components
+--enable-release-build
