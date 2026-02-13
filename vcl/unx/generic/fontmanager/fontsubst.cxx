@@ -62,9 +62,18 @@ public:
 
 #ifdef EMSCRIPTEN
 
-// Static pointer to PhysicalFontCollection, set during RegisterFontSubstitutors().
-// Lifetime matches the application -- the collection is never rebuilt.
+// Pointer to the PhysicalFontCollection that is currently being searched.
+// Updated before each PreMatchHook call so that dynamically registered fonts
+// are added to the correct collection (there may be multiple collections for
+// different OutputDevice instances, e.g. screen vs PDF export).
 static vcl::font::PhysicalFontCollection* s_pFontCollection = nullptr;
+
+// Called from PhysicalFontCollection::FindFontFamily before the PreMatchHook
+// to ensure fonts are registered to the correct collection.
+void setWasmFontCollection(vcl::font::PhysicalFontCollection* pCollection)
+{
+    s_pFontCollection = pCollection;
+}
 
 // Negative cache: font families that JS reported as unavailable or where all
 // registrations failed. Keyed by family name only — when JS returns all variants
@@ -354,8 +363,14 @@ bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rF
                 if (nRegistered > 0)
                 {
                     // Success — fonts are now in PhysicalFontCollection.
-                    // Return false so the caller's ImplFindFontFamilyBySearchName()
-                    // finds the newly registered font directly.
+                    // Reset maSearchName to the target name so the caller's
+                    // ImplFindFontFamilyBySearchName() finds the newly registered
+                    // font. Without this, maSearchName may still be set to a
+                    // metric-compatible substitute (e.g. "carlito") by
+                    // FindMetricCompatibleFont, causing the lookup to miss the
+                    // newly loaded font.
+                    rFontSelData.maSearchName
+                        = GetEnglishSearchFontName(rFontSelData.maTargetName);
                     fprintf(stderr, "FONTDBG PreMatchHook: loaded %d fonts for '%s', "
                             "returning false. searchName='%s' (caller will search this!)\n",
                             nRegistered,
