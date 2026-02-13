@@ -394,6 +394,19 @@ bool GenericSalLayout::LayoutText(vcl::text::ImplLayoutArgs& rArgs, const SalLay
     hb_font_t *pHbFont = GetFont().GetHbFont();
     bool isGraphite = GetFont().IsGraphiteFont();
 
+    // FONTDBG: Log font info for shaping
+    {
+        const auto& rFontSel = GetFont().GetFontSelectPattern();
+        hb_face_t* pDbgFace = hb_font_get_face(pHbFont);
+        unsigned int nDbgUpem = hb_face_get_upem(pDbgFace);
+        unsigned int nDbgGlyphCount = hb_face_get_glyph_count(pDbgFace);
+        fprintf(stderr, "FONTDBG CommonSalLayout::LayoutText: familyName='%s' targetName='%s' "
+                "mnHeight=%ld mnWidth=%ld upem=%u glyphCount=%u isGraphite=%d\n",
+                OUStringToOString(rFontSel.GetFamilyName(), RTL_TEXTENCODING_UTF8).getStr(),
+                OUStringToOString(rFontSel.maTargetName, RTL_TEXTENCODING_UTF8).getStr(),
+                rFontSel.mnHeight, rFontSel.mnWidth, nDbgUpem, nDbgGlyphCount, isGraphite);
+    }
+
     // tdf#163215: Identify layouts that don't have strict kashida position validation.
     m_bHasFontKashidaPositions = false;
     if (!(rArgs.mnFlags & SalLayoutFlags::DisableKashidaValidation))
@@ -614,6 +627,26 @@ bool GenericSalLayout::LayoutText(vcl::text::ImplLayoutArgs& rArgs, const SalLay
             int nRunGlyphCount = hb_buffer_get_length(pHbBuffer);
             hb_glyph_info_t *pHbGlyphInfos = hb_buffer_get_glyph_infos(pHbBuffer, nullptr);
             hb_glyph_position_t *pHbPositions = hb_buffer_get_glyph_positions(pHbBuffer, nullptr);
+
+            // FONTDBG: Log first few HarfBuzz advances
+            {
+                const auto& rDbgFontSel = GetFont().GetFontSelectPattern();
+                OString aDbgFamily = OUStringToOString(rDbgFontSel.GetFamilyName(), RTL_TEXTENCODING_UTF8);
+                if (aDbgFamily.toAsciiLowerCase().indexOf("calibri") >= 0
+                    || aDbgFamily.toAsciiLowerCase().indexOf("carlito") >= 0)
+                {
+                    int nDbgLimit = std::min(nRunGlyphCount, 10);
+                    for (int dbgi = 0; dbgi < nDbgLimit; dbgi++)
+                    {
+                        fprintf(stderr, "FONTDBG HB advance[%d]: glyph=%u x_advance=%d y_advance=%d "
+                                "(scaled=%.2f) family='%s'\n",
+                                dbgi, pHbGlyphInfos[dbgi].codepoint,
+                                pHbPositions[dbgi].x_advance, pHbPositions[dbgi].y_advance,
+                                pHbPositions[dbgi].x_advance * nXScale,
+                                aDbgFamily.getStr());
+                    }
+                }
+            }
 
             // tdf#164106: Grapheme clusters can be split across multiple layouts. To do this,
             // the complete string is laid out, and only the necessary glyphs are extracted.

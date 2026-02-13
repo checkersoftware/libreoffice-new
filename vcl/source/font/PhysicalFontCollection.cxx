@@ -1048,10 +1048,27 @@ PhysicalFontFamily* PhysicalFontCollection::FindFontFamily(FontSelectPattern& rF
 
         // check if the current font name token or its substitute is valid
         if (PhysicalFontFamily* pFoundData = ImplFindFontFamilyBySearchName(rFSD.maSearchName))
+        {
+            fprintf(stderr, "FONTDBG FindFontFamily: direct match for searchName='%s' targetName='%s'\n",
+                    OUStringToOString(rFSD.maSearchName, RTL_TEXTENCODING_UTF8).getStr(),
+                    OUStringToOString(rFSD.maTargetName, RTL_TEXTENCODING_UTF8).getStr());
             return pFoundData;
+        }
 
-        if (PhysicalFontFamily* pFoundData = FindMetricCompatibleFont(rFSD))
-            return pFoundData;
+        {
+            OUString aSavedSearch = rFSD.maSearchName;
+            if (PhysicalFontFamily* pFoundData = FindMetricCompatibleFont(rFSD))
+            {
+                fprintf(stderr, "FONTDBG FindFontFamily: metric-compatible match '%s' -> '%s' (target='%s')\n",
+                        OUStringToOString(aSavedSearch, RTL_TEXTENCODING_UTF8).getStr(),
+                        OUStringToOString(rFSD.maSearchName, RTL_TEXTENCODING_UTF8).getStr(),
+                        OUStringToOString(rFSD.maTargetName, RTL_TEXTENCODING_UTF8).getStr());
+                return pFoundData;
+            }
+            fprintf(stderr, "FONTDBG FindFontFamily: metric-compatible NOT found, searchName changed '%s' -> '%s'\n",
+                    OUStringToOString(aSavedSearch, RTL_TEXTENCODING_UTF8).getStr(),
+                    OUStringToOString(rFSD.maSearchName, RTL_TEXTENCODING_UTF8).getStr());
+        }
 
         // some systems provide special customization
         // e.g. they suggest "serif" as UI-font, but this name cannot be used directly
@@ -1073,17 +1090,36 @@ PhysicalFontFamily* PhysicalFontCollection::FindFontFamily(FontSelectPattern& rF
                 return pFoundData;
         }
 
-        if (mpPreMatchHook && mpPreMatchHook->FindFontSubstitute(rFSD))
         {
-            rFSD.maSearchName = GetEnglishSearchFontName(rFSD.maSearchName);
+            OUString aSavedSearch = rFSD.maSearchName;
+            OUString aSavedTarget = rFSD.maTargetName;
+            bool bHookResult = mpPreMatchHook && mpPreMatchHook->FindFontSubstitute(rFSD);
+            fprintf(stderr, "FONTDBG FindFontFamily: PreMatchHook result=%d, target='%s'->'%s', search='%s'->'%s'\n",
+                    bHookResult,
+                    OUStringToOString(aSavedTarget, RTL_TEXTENCODING_UTF8).getStr(),
+                    OUStringToOString(rFSD.maTargetName, RTL_TEXTENCODING_UTF8).getStr(),
+                    OUStringToOString(aSavedSearch, RTL_TEXTENCODING_UTF8).getStr(),
+                    OUStringToOString(rFSD.maSearchName, RTL_TEXTENCODING_UTF8).getStr());
+            if (bHookResult)
+            {
+                rFSD.maSearchName = GetEnglishSearchFontName(rFSD.maSearchName);
+            }
         }
 
         // the prematch hook uses the target name to search, but we now need
         // to restore the features to make the font selection data unique
         rFSD.maTargetName = aOrigName;
 
+        fprintf(stderr, "FONTDBG FindFontFamily: post-hook lookup searchName='%s'\n",
+                OUStringToOString(rFSD.maSearchName, RTL_TEXTENCODING_UTF8).getStr());
         if (PhysicalFontFamily* pFoundData = ImplFindFontFamilyBySearchName(rFSD.maSearchName))
+        {
+            fprintf(stderr, "FONTDBG FindFontFamily: post-hook FOUND '%s'\n",
+                    OUStringToOString(rFSD.maSearchName, RTL_TEXTENCODING_UTF8).getStr());
             return pFoundData;
+        }
+        fprintf(stderr, "FONTDBG FindFontFamily: post-hook NOT found '%s'\n",
+                OUStringToOString(rFSD.maSearchName, RTL_TEXTENCODING_UTF8).getStr());
 
         // break after last font name token was checked unsuccessfully
         if( nTokenPos == -1)
