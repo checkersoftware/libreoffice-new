@@ -6039,30 +6039,6 @@ void PDFWriterImpl::drawLayout( SalLayout& rLayout, const OUString& rText, bool 
         if (bUseActualText || pGlyph->IsInCluster())
             nCharPos = pGlyph->charPos();
 
-        // FONTDBG: Log PDF glyph info
-        {
-            static int nPdfGlyphLogCount = 0;
-            OString aDbgFamily = OUStringToOString(
-                pGlyphFont->GetFontSelectPattern().GetFamilyName(), RTL_TEXTENCODING_UTF8);
-            if (nPdfGlyphLogCount < 30 &&
-                (aDbgFamily.toAsciiLowerCase().indexOf("calibri") >= 0
-                 || aDbgFamily.toAsciiLowerCase().indexOf("carlito") >= 0))
-            {
-                nPdfGlyphLogCount++;
-                fprintf(stderr, "FONTDBG PDF glyph: family='%s' glyphId=%d pos=(%.2f,%.2f) "
-                        "nativeWidth=%ld glyphWidth(unscaled)=%.1f upem=%d "
-                        "mnHeight=%ld mnWidth=%ld\n",
-                        aDbgFamily.getStr(),
-                        nGlyphId,
-                        aPos.getX(), aPos.getY(),
-                        static_cast<long>(XUnits(pFace->UnitsPerEm(), nGlyphWidth)),
-                        pGlyphFont->GetGlyphWidth(nGlyphId, false, false),
-                        pFace->UnitsPerEm(),
-                        pGlyphFont->GetFontSelectPattern().mnHeight,
-                        pGlyphFont->GetFontSelectPattern().mnWidth);
-            }
-        }
-
         aGlyphs.emplace_back(aPos,
                              pGlyph,
                              pGlyphFont,

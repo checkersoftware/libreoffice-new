@@ -67,21 +67,6 @@ hb_font_t* LogicalFontInstance::InitHbFont()
     assert(pHbFace);
     auto nUPEM = pFace->UnitsPerEm();
 
-    // FONTDBG: Log HbFont creation
-    {
-        unsigned int nHbUpem = hb_face_get_upem(pHbFace);
-        unsigned int nHbGlyphCount = hb_face_get_glyph_count(pHbFace);
-        OString aDbgFamily = OUStringToOString(m_aFontSelData.GetFamilyName(), RTL_TEXTENCODING_UTF8);
-        if (aDbgFamily.toAsciiLowerCase().indexOf("calibri") >= 0
-            || aDbgFamily.toAsciiLowerCase().indexOf("carlito") >= 0)
-        {
-            fprintf(stderr, "FONTDBG InitHbFont: family='%s' pFace->UnitsPerEm=%d "
-                    "hb_face_upem=%u hb_glyph_count=%u pHbFace=%p\n",
-                    aDbgFamily.getStr(), nUPEM, nHbUpem, nHbGlyphCount,
-                    static_cast<void*>(pHbFace));
-        }
-    }
-
     hb_font_t* pHbFont = hb_font_create(pHbFace);
     hb_font_set_scale(pHbFont, nUPEM, nUPEM);
     hb_ot_font_set_funcs(pHbFont);
@@ -143,26 +128,6 @@ void LogicalFontInstance::GetScale(double* nXScale, double* nYScale) const
         double nWidth(m_aFontSelData.mnWidth ? m_aFontSelData.mnWidth * GetAverageWidthFactor()
                                              : m_aFontSelData.mnHeight);
         *nXScale = nWidth / nUPEM;
-    }
-
-    // FONTDBG: Log scale factors
-    {
-        static int nScaleLogCount = 0;
-        OString aDbgFamily = OUStringToOString(m_aFontSelData.GetFamilyName(), RTL_TEXTENCODING_UTF8);
-        if (nScaleLogCount < 50 &&
-            (aDbgFamily.toAsciiLowerCase().indexOf("calibri") >= 0
-             || aDbgFamily.toAsciiLowerCase().indexOf("carlito") >= 0))
-        {
-            nScaleLogCount++;
-            double dbgAvgFactor = GetAverageWidthFactor();
-            fprintf(stderr, "FONTDBG GetScale: family='%s' mnHeight=%ld mnWidth=%ld "
-                    "upem=%.0f avgWidthFactor=%.4f xScale=%.6f yScale=%.6f\n",
-                    aDbgFamily.getStr(),
-                    m_aFontSelData.mnHeight, m_aFontSelData.mnWidth,
-                    nUPEM, dbgAvgFactor,
-                    nXScale ? *nXScale : -1.0,
-                    nYScale ? *nYScale : -1.0);
-        }
     }
 }
 

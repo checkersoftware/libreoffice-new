@@ -299,9 +299,6 @@ bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rF
     }
 
 #ifdef EMSCRIPTEN
-    fprintf(stderr, "FONTDBG PreMatchHook: called with targetName='%s' searchName='%s'\n",
-            OUStringToOString(rFontSelData.maTargetName, RTL_TEXTENCODING_UTF8).getStr(),
-            OUStringToOString(rFontSelData.maSearchName, RTL_TEXTENCODING_UTF8).getStr());
     if (s_pFontCollection
         && !s_pFontCollection->FindFontFamily(rFontSelData.maTargetName))
     {
@@ -371,11 +368,6 @@ bool FcPreMatchSubstitution::FindFontSubstitute(vcl::font::FontSelectPattern &rF
                     // newly loaded font.
                     rFontSelData.maSearchName
                         = GetEnglishSearchFontName(rFontSelData.maTargetName);
-                    fprintf(stderr, "FONTDBG PreMatchHook: loaded %d fonts for '%s', "
-                            "returning false. searchName='%s' (caller will search this!)\n",
-                            nRegistered,
-                            OUStringToOString(rFontSelData.maTargetName, RTL_TEXTENCODING_UTF8).getStr(),
-                            OUStringToOString(rFontSelData.maSearchName, RTL_TEXTENCODING_UTF8).getStr());
                     return false;
                 }
 
