@@ -1425,20 +1425,35 @@ void FillFontSubsetInfo(const AbstractTrueTypeFont* ttf, FontSubsetInfo& rInfo)
     rInfo.m_nFontType = FontType::SFNT_TTF;
     rInfo.m_aFontBBox
         = tools::Rectangle(Point(aTTInfo.xMin, aTTInfo.yMin), Point(aTTInfo.xMax, aTTInfo.yMax));
-    rInfo.m_nCapHeight = aTTInfo.yMax; // Well ...
-    rInfo.m_nAscent = aTTInfo.winAscent;
-    rInfo.m_nDescent = aTTInfo.winDescent;
+    rInfo.m_nCapHeight = aTTInfo.sCapHeight ? aTTInfo.sCapHeight : aTTInfo.yMax;
 
-    // mac fonts usually do not have an OS2-table
-    // => get valid ascent/descent values from other tables
-    if (!rInfo.m_nAscent)
+    // When USE_TYPO_METRICS is set (OS/2 fsSelection bit 7), use sTypo metrics
+    // for the PDF font descriptor to match the line spacing metrics used by the
+    // layout engine. This ensures PDF viewers report font sizes consistent with
+    // the actual text layout.
+    bool bUseTypoMetrics = (aTTInfo.fsSelection & (1 << 7))
+                           && aTTInfo.typoAscender > 0 && aTTInfo.typoDescender < 0;
+    if (bUseTypoMetrics)
+    {
         rInfo.m_nAscent = +aTTInfo.typoAscender;
-    if (!rInfo.m_nAscent)
-        rInfo.m_nAscent = +aTTInfo.ascender;
-    if (!rInfo.m_nDescent)
-        rInfo.m_nDescent = +aTTInfo.typoDescender;
-    if (!rInfo.m_nDescent)
-        rInfo.m_nDescent = -aTTInfo.descender;
+        rInfo.m_nDescent = -aTTInfo.typoDescender;
+    }
+    else
+    {
+        rInfo.m_nAscent = aTTInfo.winAscent;
+        rInfo.m_nDescent = aTTInfo.winDescent;
+
+        // mac fonts usually do not have an OS2-table
+        // => get valid ascent/descent values from other tables
+        if (!rInfo.m_nAscent)
+            rInfo.m_nAscent = +aTTInfo.typoAscender;
+        if (!rInfo.m_nAscent)
+            rInfo.m_nAscent = +aTTInfo.ascender;
+        if (!rInfo.m_nDescent)
+            rInfo.m_nDescent = +aTTInfo.typoDescender;
+        if (!rInfo.m_nDescent)
+            rInfo.m_nDescent = -aTTInfo.descender;
+    }
 
     rInfo.m_bFilled = true;
 }
@@ -1585,6 +1600,11 @@ void GetTTGlobalFontInfo(const AbstractTrueTypeFont *ttf, TTGlobalFontInfo *info
             if( info->winDescent > 5*UPEm )
                 info->winDescent = XUnits(UPEm, GetInt16(table, OS2_winDescent_offset));
         }
+        if (table_size >= 64)
+            info->fsSelection = GetUInt16(table, OS2_fsSelection_offset);
+        // sCapHeight is at offset 88 (OS/2 version 2+)
+        if (table_size >= 90 && UPEm != 0)
+            info->sCapHeight = XUnits(UPEm, GetInt16(table, 88));
         memcpy(info->panose, table + OS2_panose_offset, OS2_panoseNbBytes_offset);
         info->typeFlags = GetUInt16( table, OS2_fsType_offset );
     }
