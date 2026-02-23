@@ -178,7 +178,6 @@ namespace vcl
         int   winAscent = 0;          /**< ascender metric for Windows                             */
         int   winDescent = 0;         /**< descender metric for Windows                            */
         bool  microsoftSymbolEncoded = false;  /**< true: MS symbol encoded */
-        int   sCapHeight = 0;         /**< OS/2 sCapHeight                                         */
         sal_uInt8  panose[10] = {};   /**< PANOSE classification number                            */
         sal_uInt32 typeFlags = 0;     /**< type flags (copyright bits)                             */
         sal_uInt16 fsSelection = 0;   /**< OS/2 fsSelection */
