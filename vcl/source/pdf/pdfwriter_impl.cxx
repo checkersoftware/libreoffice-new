@@ -1410,6 +1410,9 @@ std::map< sal_Int32, sal_Int32 > PDFWriterImpl::emitSystemFont( const vcl::font:
     aInfo.m_nDescent = 200;
     aInfo.m_nCapHeight = 1000;
     aInfo.m_aFontBBox = tools::Rectangle( Point( -200, -200 ), Size( 1700, 1700 ) );
+    fprintf(stderr, "DEBUG emitSystemFont: font='%s' (dummy values set: ascent=%d descent=%d)\n",
+            OUStringToOString(pFace->GetFamilyName(), RTL_TEXTENCODING_UTF8).getStr(),
+            aInfo.m_nAscent, aInfo.m_nDescent);
     aInfo.m_aPSName = pFace->GetFamilyName();
 
     sal_Int32 pWidths[256] = { 0 };
@@ -1426,6 +1429,9 @@ std::map< sal_Int32, sal_Int32 > PDFWriterImpl::emitSystemFont( const vcl::font:
     sal_uInt8 pEncoding[] = { 0 };
     std::vector<sal_uInt8> aBuffer;
     pFace->CreateFontSubset(aBuffer, aGlyphIds, pEncoding, 1, aInfo);
+    fprintf(stderr, "DEBUG emitSystemFont: after CreateFontSubset: font='%s' ascent=%d descent=%d capHeight=%d\n",
+            OUStringToOString(aInfo.m_aPSName, RTL_TEXTENCODING_UTF8).getStr(),
+            aInfo.m_nAscent, aInfo.m_nDescent, aInfo.m_nCapHeight);
 
     // write font descriptor
     sal_Int32 nFontDescriptor = emitFontDescriptor( pFace, aInfo, 0, 0 );
@@ -2014,6 +2020,9 @@ sal_Int32 PDFWriterImpl::emitFontDescriptor( const vcl::font::PhysicalFontFace* 
         aLine.append( "-30" );
     else
         aLine.append( "0" );
+    fprintf(stderr, "DEBUG emitFontDescriptor: font='%s' ascent=%d descent=%d capHeight=%d\n",
+            OUStringToOString(rInfo.m_aPSName, RTL_TEXTENCODING_UTF8).getStr(),
+            rInfo.m_nAscent, rInfo.m_nDescent, rInfo.m_nCapHeight);
     aLine.append( "\n"
                   "/Ascent "
         + OString::number( rInfo.m_nAscent )

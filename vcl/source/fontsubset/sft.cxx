@@ -1433,6 +1433,13 @@ void FillFontSubsetInfo(const AbstractTrueTypeFont* ttf, FontSubsetInfo& rInfo)
     // the actual text layout.
     bool bUseTypoMetrics = (aTTInfo.fsSelection & (1 << 7))
                            && aTTInfo.typoAscender > 0 && aTTInfo.typoDescender < 0;
+
+    fprintf(stderr, "DEBUG FillFontSubsetInfo: font='%s' fsSelection=0x%04x useTypo=%d typoAsc=%d typoDes=%d winAsc=%d winDes=%d sCapHeight=%d yMax=%d\n",
+            aTTInfo.psname.getStr(), aTTInfo.fsSelection, bUseTypoMetrics,
+            aTTInfo.typoAscender, aTTInfo.typoDescender,
+            aTTInfo.winAscent, aTTInfo.winDescent,
+            aTTInfo.sCapHeight, aTTInfo.yMax);
+
     if (bUseTypoMetrics)
     {
         rInfo.m_nAscent = +aTTInfo.typoAscender;
@@ -1454,6 +1461,9 @@ void FillFontSubsetInfo(const AbstractTrueTypeFont* ttf, FontSubsetInfo& rInfo)
         if (!rInfo.m_nDescent)
             rInfo.m_nDescent = -aTTInfo.descender;
     }
+
+    fprintf(stderr, "DEBUG FillFontSubsetInfo: result ascent=%d descent=%d capHeight=%d\n",
+            rInfo.m_nAscent, rInfo.m_nDescent, rInfo.m_nCapHeight);
 
     rInfo.m_bFilled = true;
 }
