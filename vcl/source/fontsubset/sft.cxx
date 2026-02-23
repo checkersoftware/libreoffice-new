@@ -1423,51 +1423,22 @@ void FillFontSubsetInfo(const AbstractTrueTypeFont* ttf, FontSubsetInfo& rInfo)
 
     rInfo.m_aPSName = OUString::fromUtf8(aTTInfo.psname);
     rInfo.m_nFontType = FontType::SFNT_TTF;
-    rInfo.m_nCapHeight = aTTInfo.sCapHeight ? aTTInfo.sCapHeight : aTTInfo.yMax;
-
-    // Use sTypo metrics for the PDF font descriptor's vertical extent (FontBBox,
-    // Ascent, Descent). This matches Word's behavior where the FontBBox y-range
-    // reflects the typographic ascent/descent rather than the head table's
-    // extreme glyph bounding box. PDF viewers (e.g. PDFium's GetLooseCharBox)
-    // derive character bounding boxes from FontBBox, so using the head table's
-    // full bbox causes inflated size measurements.
-    bool bUseTypoMetrics = (aTTInfo.fsSelection & (1 << 7))
-                           && aTTInfo.typoAscender > 0 && aTTInfo.typoDescender < 0;
-
-    // For FontBBox vertical extent, prefer sTypo metrics for all fonts
-    // (matching Word's PDF output behavior). Fall back to head table bbox
-    // only if sTypo metrics are unavailable.
-    int nBBoxYMin = aTTInfo.yMin;
-    int nBBoxYMax = aTTInfo.yMax;
-    if (aTTInfo.typoAscender > 0 && aTTInfo.typoDescender < 0)
-    {
-        nBBoxYMax = aTTInfo.typoAscender;
-        nBBoxYMin = aTTInfo.typoDescender;
-    }
     rInfo.m_aFontBBox
-        = tools::Rectangle(Point(aTTInfo.xMin, nBBoxYMin), Point(aTTInfo.xMax, nBBoxYMax));
+        = tools::Rectangle(Point(aTTInfo.xMin, aTTInfo.yMin), Point(aTTInfo.xMax, aTTInfo.yMax));
+    rInfo.m_nCapHeight = aTTInfo.yMax; // Well ...
+    rInfo.m_nAscent = aTTInfo.winAscent;
+    rInfo.m_nDescent = aTTInfo.winDescent;
 
-    if (bUseTypoMetrics)
-    {
+    // mac fonts usually do not have an OS2-table
+    // => get valid ascent/descent values from other tables
+    if (!rInfo.m_nAscent)
         rInfo.m_nAscent = +aTTInfo.typoAscender;
-        rInfo.m_nDescent = -aTTInfo.typoDescender;
-    }
-    else
-    {
-        rInfo.m_nAscent = aTTInfo.winAscent;
-        rInfo.m_nDescent = aTTInfo.winDescent;
-
-        // mac fonts usually do not have an OS2-table
-        // => get valid ascent/descent values from other tables
-        if (!rInfo.m_nAscent)
-            rInfo.m_nAscent = +aTTInfo.typoAscender;
-        if (!rInfo.m_nAscent)
-            rInfo.m_nAscent = +aTTInfo.ascender;
-        if (!rInfo.m_nDescent)
-            rInfo.m_nDescent = +aTTInfo.typoDescender;
-        if (!rInfo.m_nDescent)
-            rInfo.m_nDescent = -aTTInfo.descender;
-    }
+    if (!rInfo.m_nAscent)
+        rInfo.m_nAscent = +aTTInfo.ascender;
+    if (!rInfo.m_nDescent)
+        rInfo.m_nDescent = +aTTInfo.typoDescender;
+    if (!rInfo.m_nDescent)
+        rInfo.m_nDescent = -aTTInfo.descender;
 
     rInfo.m_bFilled = true;
 }
@@ -1614,11 +1585,6 @@ void GetTTGlobalFontInfo(const AbstractTrueTypeFont *ttf, TTGlobalFontInfo *info
             if( info->winDescent > 5*UPEm )
                 info->winDescent = XUnits(UPEm, GetInt16(table, OS2_winDescent_offset));
         }
-        if (table_size >= 64)
-            info->fsSelection = GetUInt16(table, OS2_fsSelection_offset);
-        // sCapHeight is at offset 88 (OS/2 version 2+)
-        if (table_size >= 90 && UPEm != 0)
-            info->sCapHeight = XUnits(UPEm, GetInt16(table, 88));
         memcpy(info->panose, table + OS2_panose_offset, OS2_panoseNbBytes_offset);
         info->typeFlags = GetUInt16( table, OS2_fsType_offset );
     }

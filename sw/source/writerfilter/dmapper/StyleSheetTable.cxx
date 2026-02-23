@@ -1283,6 +1283,7 @@ void StyleSheetTable::ApplyStyleSheetsImpl(const FontTablePtr& rFontTable, std::
                             xState->setPropertyToDefault(getPropertyName( PROP_CHAR_PROP_HEIGHT        ));
                             xState->setPropertyToDefault(getPropertyName( PROP_CHAR_PROP_HEIGHT_ASIAN  ));
                             xState->setPropertyToDefault(getPropertyName( PROP_CHAR_PROP_HEIGHT_COMPLEX));
+
                         }
 
                         // w:leftChars overrides w:left - even if leftChars is only inherited.

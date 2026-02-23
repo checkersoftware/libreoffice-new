@@ -1426,6 +1426,7 @@ std::map< sal_Int32, sal_Int32 > PDFWriterImpl::emitSystemFont( const vcl::font:
     sal_uInt8 pEncoding[] = { 0 };
     std::vector<sal_uInt8> aBuffer;
     pFace->CreateFontSubset(aBuffer, aGlyphIds, pEncoding, 1, aInfo);
+
     // write font descriptor
     sal_Int32 nFontDescriptor = emitFontDescriptor( pFace, aInfo, 0, 0 );
     if( nFontDescriptor )
