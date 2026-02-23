@@ -1284,6 +1284,14 @@ void StyleSheetTable::ApplyStyleSheetsImpl(const FontTablePtr& rFontTable, std::
                             xState->setPropertyToDefault(getPropertyName( PROP_CHAR_PROP_HEIGHT_ASIAN  ));
                             xState->setPropertyToDefault(getPropertyName( PROP_CHAR_PROP_HEIGHT_COMPLEX));
 
+                            // Reset LO's built-in heading paragraph spacing so it inherits
+                            // from the parent style. OOXML defaults to 0 before/after spacing
+                            // when not explicitly set; LO's built-in headings have significant
+                            // spacing (e.g. Heading 1: 12pt before, 6pt after) that causes
+                            // layout overflow. If the DOCX style defines explicit spacing,
+                            // it will be applied later from aPropValues and override this.
+                            xState->setPropertyToDefault(getPropertyName( PROP_PARA_TOP_MARGIN ));
+                            xState->setPropertyToDefault(getPropertyName( PROP_PARA_BOTTOM_MARGIN ));
                         }
 
                         // w:leftChars overrides w:left - even if leftChars is only inherited.

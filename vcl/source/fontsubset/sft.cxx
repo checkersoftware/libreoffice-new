@@ -1447,12 +1447,6 @@ void FillFontSubsetInfo(const AbstractTrueTypeFont* ttf, FontSubsetInfo& rInfo)
     rInfo.m_aFontBBox
         = tools::Rectangle(Point(aTTInfo.xMin, nBBoxYMin), Point(aTTInfo.xMax, nBBoxYMax));
 
-    fprintf(stderr, "DEBUG FillFontSubsetInfo: font='%s' fsSelection=0x%04x useTypo=%d typoAsc=%d typoDes=%d winAsc=%d winDes=%d bboxY=[%d,%d] headY=[%d,%d]\n",
-            aTTInfo.psname.getStr(), aTTInfo.fsSelection, bUseTypoMetrics,
-            aTTInfo.typoAscender, aTTInfo.typoDescender,
-            aTTInfo.winAscent, aTTInfo.winDescent,
-            nBBoxYMin, nBBoxYMax, aTTInfo.yMin, aTTInfo.yMax);
-
     if (bUseTypoMetrics)
     {
         rInfo.m_nAscent = +aTTInfo.typoAscender;
@@ -1474,11 +1468,6 @@ void FillFontSubsetInfo(const AbstractTrueTypeFont* ttf, FontSubsetInfo& rInfo)
         if (!rInfo.m_nDescent)
             rInfo.m_nDescent = -aTTInfo.descender;
     }
-
-    fprintf(stderr, "DEBUG FillFontSubsetInfo: result ascent=%d descent=%d capHeight=%d bbox=[%d,%d,%d,%d]\n",
-            rInfo.m_nAscent, rInfo.m_nDescent, rInfo.m_nCapHeight,
-            (int)rInfo.m_aFontBBox.Left(), (int)rInfo.m_aFontBBox.Top(),
-            (int)rInfo.m_aFontBBox.Right(), (int)rInfo.m_aFontBBox.Bottom());
 
     rInfo.m_bFilled = true;
 }
