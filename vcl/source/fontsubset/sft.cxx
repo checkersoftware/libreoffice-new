@@ -1423,22 +1423,35 @@ void FillFontSubsetInfo(const AbstractTrueTypeFont* ttf, FontSubsetInfo& rInfo)
 
     rInfo.m_aPSName = OUString::fromUtf8(aTTInfo.psname);
     rInfo.m_nFontType = FontType::SFNT_TTF;
-    rInfo.m_aFontBBox
-        = tools::Rectangle(Point(aTTInfo.xMin, aTTInfo.yMin), Point(aTTInfo.xMax, aTTInfo.yMax));
     rInfo.m_nCapHeight = aTTInfo.sCapHeight ? aTTInfo.sCapHeight : aTTInfo.yMax;
 
-    // When USE_TYPO_METRICS is set (OS/2 fsSelection bit 7), use sTypo metrics
-    // for the PDF font descriptor to match the line spacing metrics used by the
-    // layout engine. This ensures PDF viewers report font sizes consistent with
-    // the actual text layout.
+    // Use sTypo metrics for the PDF font descriptor's vertical extent (FontBBox,
+    // Ascent, Descent). This matches Word's behavior where the FontBBox y-range
+    // reflects the typographic ascent/descent rather than the head table's
+    // extreme glyph bounding box. PDF viewers (e.g. PDFium's GetLooseCharBox)
+    // derive character bounding boxes from FontBBox, so using the head table's
+    // full bbox causes inflated size measurements.
     bool bUseTypoMetrics = (aTTInfo.fsSelection & (1 << 7))
                            && aTTInfo.typoAscender > 0 && aTTInfo.typoDescender < 0;
 
-    fprintf(stderr, "DEBUG FillFontSubsetInfo: font='%s' fsSelection=0x%04x useTypo=%d typoAsc=%d typoDes=%d winAsc=%d winDes=%d sCapHeight=%d yMax=%d\n",
+    // For FontBBox vertical extent, prefer sTypo metrics for all fonts
+    // (matching Word's PDF output behavior). Fall back to head table bbox
+    // only if sTypo metrics are unavailable.
+    int nBBoxYMin = aTTInfo.yMin;
+    int nBBoxYMax = aTTInfo.yMax;
+    if (aTTInfo.typoAscender > 0 && aTTInfo.typoDescender < 0)
+    {
+        nBBoxYMax = aTTInfo.typoAscender;
+        nBBoxYMin = aTTInfo.typoDescender;
+    }
+    rInfo.m_aFontBBox
+        = tools::Rectangle(Point(aTTInfo.xMin, nBBoxYMin), Point(aTTInfo.xMax, nBBoxYMax));
+
+    fprintf(stderr, "DEBUG FillFontSubsetInfo: font='%s' fsSelection=0x%04x useTypo=%d typoAsc=%d typoDes=%d winAsc=%d winDes=%d bboxY=[%d,%d] headY=[%d,%d]\n",
             aTTInfo.psname.getStr(), aTTInfo.fsSelection, bUseTypoMetrics,
             aTTInfo.typoAscender, aTTInfo.typoDescender,
             aTTInfo.winAscent, aTTInfo.winDescent,
-            aTTInfo.sCapHeight, aTTInfo.yMax);
+            nBBoxYMin, nBBoxYMax, aTTInfo.yMin, aTTInfo.yMax);
 
     if (bUseTypoMetrics)
     {
@@ -1462,8 +1475,10 @@ void FillFontSubsetInfo(const AbstractTrueTypeFont* ttf, FontSubsetInfo& rInfo)
             rInfo.m_nDescent = -aTTInfo.descender;
     }
 
-    fprintf(stderr, "DEBUG FillFontSubsetInfo: result ascent=%d descent=%d capHeight=%d\n",
-            rInfo.m_nAscent, rInfo.m_nDescent, rInfo.m_nCapHeight);
+    fprintf(stderr, "DEBUG FillFontSubsetInfo: result ascent=%d descent=%d capHeight=%d bbox=[%d,%d,%d,%d]\n",
+            rInfo.m_nAscent, rInfo.m_nDescent, rInfo.m_nCapHeight,
+            (int)rInfo.m_aFontBBox.Left(), (int)rInfo.m_aFontBBox.Top(),
+            (int)rInfo.m_aFontBBox.Right(), (int)rInfo.m_aFontBBox.Bottom());
 
     rInfo.m_bFilled = true;
 }
