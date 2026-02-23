@@ -17,6 +17,7 @@
  *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
  */
 
+#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <comphelper/classids.hxx>
@@ -357,19 +358,27 @@ void SwRevisionConfig::Load()
     }
 
     // Environment variable overrides (for WASM builds)
-    if (const char* pVal = getenv("LO_REDLINE_INSERT_COLOR"))
+    const char* pInsert = getenv("LO_REDLINE_INSERT_COLOR");
+    const char* pDelete = getenv("LO_REDLINE_DELETE_COLOR");
+    const char* pChange = getenv("LO_REDLINE_CHANGE_COLOR");
+    fprintf(stderr, "SwRevisionConfig::Load: LO_REDLINE_INSERT_COLOR=%s LO_REDLINE_DELETE_COLOR=%s LO_REDLINE_CHANGE_COLOR=%s\n",
+            pInsert ? pInsert : "(null)", pDelete ? pDelete : "(null)", pChange ? pChange : "(null)");
+    if (pInsert)
     {
-        sal_Int32 nColor = OUString::createFromAscii(pVal).toUInt32(16);
+        sal_Int32 nColor = OUString::createFromAscii(pInsert).toUInt32(16);
+        fprintf(stderr, "SwRevisionConfig::Load: insert color parsed as 0x%06x\n", static_cast<unsigned>(nColor));
         m_aInsertAttr.m_nColor = Color(nColor);
     }
-    if (const char* pVal = getenv("LO_REDLINE_DELETE_COLOR"))
+    if (pDelete)
     {
-        sal_Int32 nColor = OUString::createFromAscii(pVal).toUInt32(16);
+        sal_Int32 nColor = OUString::createFromAscii(pDelete).toUInt32(16);
+        fprintf(stderr, "SwRevisionConfig::Load: delete color parsed as 0x%06x\n", static_cast<unsigned>(nColor));
         m_aDeletedAttr.m_nColor = Color(nColor);
     }
-    if (const char* pVal = getenv("LO_REDLINE_CHANGE_COLOR"))
+    if (pChange)
     {
-        sal_Int32 nColor = OUString::createFromAscii(pVal).toUInt32(16);
+        sal_Int32 nColor = OUString::createFromAscii(pChange).toUInt32(16);
+        fprintf(stderr, "SwRevisionConfig::Load: change color parsed as 0x%06x\n", static_cast<unsigned>(nColor));
         m_aFormatAttr.m_nColor = Color(nColor);
     }
 }
