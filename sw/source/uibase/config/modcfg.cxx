@@ -17,7 +17,6 @@
  *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <comphelper/classids.hxx>
@@ -357,29 +356,31 @@ void SwRevisionConfig::Load()
         }
     }
 
-    // Environment variable overrides (for WASM builds)
-    const char* pInsert = getenv("LO_REDLINE_INSERT_COLOR");
-    const char* pDelete = getenv("LO_REDLINE_DELETE_COLOR");
-    const char* pChange = getenv("LO_REDLINE_CHANGE_COLOR");
-    fprintf(stderr, "SwRevisionConfig::Load: LO_REDLINE_INSERT_COLOR=%s LO_REDLINE_DELETE_COLOR=%s LO_REDLINE_CHANGE_COLOR=%s\n",
-            pInsert ? pInsert : "(null)", pDelete ? pDelete : "(null)", pChange ? pChange : "(null)");
-    if (pInsert)
+    // Environment variable overrides (for WASM builds).
+    // On parse failure (invalid hex), the config value is left unchanged.
+    if (const char* pVal = getenv("LO_REDLINE_INSERT_COLOR"))
     {
-        sal_Int32 nColor = OUString::createFromAscii(pInsert).toUInt32(16);
-        fprintf(stderr, "SwRevisionConfig::Load: insert color parsed as 0x%06x\n", static_cast<unsigned>(nColor));
-        m_aInsertAttr.m_nColor = Color(nColor);
+        OUString sVal = OUString::createFromAscii(pVal);
+        sal_Int32 nIdx = 0;
+        sal_Int32 nColor = sVal.toInt32(&nIdx, 16);
+        if (nIdx == sVal.getLength() && nIdx > 0)
+            m_aInsertAttr.m_nColor = Color(nColor);
     }
-    if (pDelete)
+    if (const char* pVal = getenv("LO_REDLINE_DELETE_COLOR"))
     {
-        sal_Int32 nColor = OUString::createFromAscii(pDelete).toUInt32(16);
-        fprintf(stderr, "SwRevisionConfig::Load: delete color parsed as 0x%06x\n", static_cast<unsigned>(nColor));
-        m_aDeletedAttr.m_nColor = Color(nColor);
+        OUString sVal = OUString::createFromAscii(pVal);
+        sal_Int32 nIdx = 0;
+        sal_Int32 nColor = sVal.toInt32(&nIdx, 16);
+        if (nIdx == sVal.getLength() && nIdx > 0)
+            m_aDeletedAttr.m_nColor = Color(nColor);
     }
-    if (pChange)
+    if (const char* pVal = getenv("LO_REDLINE_CHANGE_COLOR"))
     {
-        sal_Int32 nColor = OUString::createFromAscii(pChange).toUInt32(16);
-        fprintf(stderr, "SwRevisionConfig::Load: change color parsed as 0x%06x\n", static_cast<unsigned>(nColor));
-        m_aFormatAttr.m_nColor = Color(nColor);
+        OUString sVal = OUString::createFromAscii(pVal);
+        sal_Int32 nIdx = 0;
+        sal_Int32 nColor = sVal.toInt32(&nIdx, 16);
+        if (nIdx == sVal.getLength() && nIdx > 0)
+            m_aFormatAttr.m_nColor = Color(nColor);
     }
 }
 
