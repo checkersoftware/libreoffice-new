@@ -16,6 +16,7 @@ For context on the overall WASM build system, see the [lo-wasm README](https://g
   - [autogen.input](#autogeninput)
   - [sw/source/uibase/config/modcfg.cxx](#modcfgcxx)
   - [officecfg/registry/schema/org/openoffice/Office/Writer.xcs](#writerxcs)
+  - [sw/source/core/text/redlnitr.cxx](#redlnitrcxx)
   - [.gitignore](#gitignore)
 
 ---
@@ -26,7 +27,7 @@ The changes fall into three categories:
 
 1. **WASM System Font Resolution** — The core feature. Allows LibreOffice running in WASM to request fonts from the host environment (Electron) at runtime, so documents render with the correct fonts instead of metric-compatible substitutes.
 2. **Headless Build Optimizations** — Strips UI resources, splash images, themes, and other files from the Emscripten virtual filesystem that are unnecessary for headless document-to-PDF conversion.
-3. **Redline Color Customization** — Changes default tracked-change (redline) colors from "auto" to explicit RGB values, and adds environment variable overrides so Diffchecker can control them.
+3. **Redline Color Customization** — Changes default tracked-change (redline) colors from "auto" to explicit RGB values, and adds environment variable overrides so Diffchecker can control insertion, deletion, change, and move colors.
 
 ---
 
@@ -299,6 +300,41 @@ Three `<value>` elements changed:
 
 ---
 
+### redlnitr.cxx
+
+**Path:** `sw/source/core/text/redlnitr.cxx`
+
+**Purpose:** Allows overriding the moved-text redline color via an environment variable at runtime.
+
+**What changed:**
+
+1. **Added `#include <cstdlib>`** — For `std::getenv`.
+
+2. **Replaced hardcoded `COL_GREEN`** — In `SwRedlineItr::ChkSpecialUnderline()`, the moved-text color was hardcoded to `COL_GREEN`. Now it checks for `LO_REDLINE_MOVE_COLOR` first:
+
+```cpp
+Color aMoveColor = COL_GREEN;
+if (const char* pVal = std::getenv("LO_REDLINE_MOVE_COLOR"))
+{
+    sal_Int32 nColor = OUString::createFromAscii(pVal).toUInt32(16);
+    aMoveColor = Color(nColor);
+}
+m_pSet->Put(SvxColorItem( aMoveColor, RES_CHRATR_COLOR ));
+```
+
+**Why this is in redlnitr.cxx and not modcfg.cxx:** The insert, delete, and change colors are loaded from configuration in `SwRevisionConfig::Load()` (`modcfg.cxx`) and stored as member fields on the config object. The move color, however, is not part of the redline config — it's applied inline during text rendering in `redlnitr.cxx` only when `DisplayMovedTextInGreen` is enabled and the redline is a move operation. There's no config field to override, so the env var is read at the point of use.
+
+**Why env var follows the same pattern:** Uses the same hex RGB parsing as the other `LO_REDLINE_*` env vars (`OUString::createFromAscii` → `toUInt32(16)` → `Color()`), so all four color overrides are set identically from the Electron side via Emscripten's `ENV` object:
+
+- `LO_REDLINE_INSERT_COLOR` (in `modcfg.cxx`)
+- `LO_REDLINE_DELETE_COLOR` (in `modcfg.cxx`)
+- `LO_REDLINE_CHANGE_COLOR` (in `modcfg.cxx`)
+- `LO_REDLINE_MOVE_COLOR` (in `redlnitr.cxx`)
+
+**Conflict risk:** LOW — The change is a small inline modification within an `if` block. Only conflicts if upstream changes how moved text color is applied in `ChkSpecialUnderline()`.
+
+---
+
 ## Update Checklist
 
 When rebasing onto a new upstream version:
@@ -310,5 +346,6 @@ When rebasing onto a new upstream version:
 5. **`CustomTarget_emscripten_fs_image.mk`** — Expect heavy conflicts. Accept upstream additions, then re-comment-out UI/theme/gallery/font files. Test conversions.
 6. **`Writer.xcs`** — Re-apply the three color value changes if they get overwritten.
 7. **`modcfg.cxx`** — Re-apply the env var block at the end of `SwRevisionConfig::Load()`.
-8. **`autogen.input`** — No conflicts (our file). Review upstream's `static/README.wasm.md` for any new required flags.
-9. **`.gitignore`** — Re-remove the `/autogen.input` line if upstream re-adds it.
+8. **`redlnitr.cxx`** — Re-apply the `LO_REDLINE_MOVE_COLOR` env var override in `ChkSpecialUnderline()` where `COL_GREEN` is used for moved text.
+9. **`autogen.input`** — No conflicts (our file). Review upstream's `static/README.wasm.md` for any new required flags.
+10. **`.gitignore`** — Re-remove the `/autogen.input` line if upstream re-adds it.
