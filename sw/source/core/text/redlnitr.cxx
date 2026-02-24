@@ -19,6 +19,7 @@
 
 #include <sal/config.h>
 
+#include <cstdlib>
 #include <string_view>
 
 #include <hintids.hxx>
@@ -951,7 +952,13 @@ short SwRedlineItr::Seek(SwFont& rFnt,
                     {
                         // Standard redline render mode, so move is more than just insert and
                         // delete.
-                        m_pSet->Put(SvxColorItem( COL_GREEN, RES_CHRATR_COLOR ));
+                        Color aMoveColor = COL_GREEN;
+                        if (const char* pVal = std::getenv("LO_REDLINE_MOVE_COLOR"))
+                        {
+                            sal_Int32 nColor = OUString::createFromAscii(pVal).toUInt32(16);
+                            aMoveColor = Color(nColor);
+                        }
+                        m_pSet->Put(SvxColorItem( aMoveColor, RES_CHRATR_COLOR ));
                         if (SfxItemState::SET == m_pSet->GetItemState(RES_CHRATR_CROSSEDOUT, true))
                             m_pSet->Put(SvxCrossedOutItem( STRIKEOUT_DOUBLE, RES_CHRATR_CROSSEDOUT ));
                         else
