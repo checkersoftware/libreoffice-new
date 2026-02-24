@@ -31,6 +31,12 @@
 #include <font/PhysicalFontCollection.hxx>
 #include <font/fontsubstitution.hxx>
 
+#ifdef EMSCRIPTEN
+// Defined in vcl/unx/generic/fontmanager/fontsubst.cxx.
+// Ensures dynamically registered fonts go into the correct collection.
+extern void setWasmFontCollection(vcl::font::PhysicalFontCollection* pCollection);
+#endif
+
 static ImplFontAttrs lcl_IsCJKFont( std::u16string_view rFontName )
 {
     // Test, if Fontname includes CJK characters --> In this case we
@@ -1073,6 +1079,11 @@ PhysicalFontFamily* PhysicalFontCollection::FindFontFamily(FontSelectPattern& rF
                 return pFoundData;
         }
 
+#ifdef EMSCRIPTEN
+        // Ensure dynamically loaded fonts are registered to THIS collection,
+        // not a stale pointer from a previous GetDevFontList call.
+        setWasmFontCollection(const_cast<PhysicalFontCollection*>(this));
+#endif
         if (mpPreMatchHook && mpPreMatchHook->FindFontSubstitute(rFSD))
         {
             rFSD.maSearchName = GetEnglishSearchFontName(rFSD.maSearchName);
@@ -1105,6 +1116,9 @@ PhysicalFontFamily* PhysicalFontCollection::FindFontFamily(FontSelectPattern& rF
         }
         else
             nTokenPos = -1;
+#ifdef EMSCRIPTEN
+        setWasmFontCollection(const_cast<PhysicalFontCollection*>(this));
+#endif
         if (FindMetricCompatibleFont(rFSD) ||
             (mpPreMatchHook && mpPreMatchHook->FindFontSubstitute(rFSD)))
         {

@@ -17,6 +17,7 @@
  *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
  */
 
+#include <cstdlib>
 #include <memory>
 #include <comphelper/classids.hxx>
 #include <o3tl/any.hxx>
@@ -353,6 +354,23 @@ void SwRevisionConfig::Load()
                 case 7 : m_aMarkColor = Color(ColorTransparency, nVal); break;
             }
         }
+    }
+
+    // Environment variable overrides (for WASM builds)
+    if (const char* pVal = getenv("LO_REDLINE_INSERT_COLOR"))
+    {
+        sal_Int32 nColor = OUString::createFromAscii(pVal).toUInt32(16);
+        m_aInsertAttr.m_nColor = Color(nColor);
+    }
+    if (const char* pVal = getenv("LO_REDLINE_DELETE_COLOR"))
+    {
+        sal_Int32 nColor = OUString::createFromAscii(pVal).toUInt32(16);
+        m_aDeletedAttr.m_nColor = Color(nColor);
+    }
+    if (const char* pVal = getenv("LO_REDLINE_CHANGE_COLOR"))
+    {
+        sal_Int32 nColor = OUString::createFromAscii(pVal).toUInt32(16);
+        m_aFormatAttr.m_nColor = Color(nColor);
     }
 }
 

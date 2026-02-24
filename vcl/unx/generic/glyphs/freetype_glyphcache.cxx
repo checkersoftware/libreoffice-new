@@ -343,19 +343,19 @@ namespace
 {
 hb_blob_t* CreateHbBlob(FreetypeFontFile* pFontFile)
 {
+    // On Emscripten, hb_blob_create_from_file() may fail on MEMFS paths
+    // (e.g. /tmp/fonts/ for dynamically loaded system fonts), while
+    // FreetypeFontFile::Map() works correctly via mmap emulation.
+    // Always prefer the mmap'd buffer when available to ensure HarfBuzz
+    // gets valid font data for shaping/metrics on all platforms.
+    if (pFontFile->Map())
+        return hb_blob_create(
+            reinterpret_cast<const char*>(pFontFile->GetBuffer()), pFontFile->GetFileSize(),
+            HB_MEMORY_MODE_READONLY, pFontFile,
+            [](void* data) { static_cast<FreetypeFontFile*>(data)->Unmap(); });
+
+    // Fallback: try loading from file path directly (works on native platforms)
     auto pFileName = pFontFile->GetFileName().getStr();
-    int nFD;
-    int n;
-    if (sscanf(pFileName, "/:FD:/%d%n", &nFD, &n) == 1 && pFileName[n] == '\0')
-    {
-        if (pFontFile->Map())
-            return hb_blob_create(
-                reinterpret_cast<const char*>(pFontFile->GetBuffer()), pFontFile->GetFileSize(),
-                HB_MEMORY_MODE_READONLY, pFontFile,
-                [](void* data) { static_cast<FreetypeFontFile*>(data)->Unmap(); });
-        pFontFile->Unmap();
-        return hb_blob_get_empty();
-    }
     return hb_blob_create_from_file(pFileName);
 }
 }

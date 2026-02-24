@@ -2294,7 +2294,7 @@
             <info>
               <desc>Defines the color for displaying changes when text is inserted.</desc>
             </info>
-            <value>-1</value>
+            <value>34816</value>
           </prop>
         </group>
         <group oor:name="Delete">
@@ -2361,7 +2361,7 @@
             <info>
               <desc>Defines the color for displaying changes when text is deleted.</desc>
             </info>
-            <value>-1</value>
+            <value>16711680</value>
           </prop>
         </group>
         <group oor:name="ChangedAttribute">
@@ -2433,7 +2433,7 @@
             <info>
               <desc>Defines the color for displaying changes when text attributes are modified.</desc>
             </info>
-            <value>-1</value>
+            <value>255</value>
           </prop>
         </group>
       </group>
